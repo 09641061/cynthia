@@ -1,0 +1,2 @@
+- [] Actualizar la skill de permisos con los otros bc y que use la skill `rust-ddd`
+- [] Crear el `agents.md`
