@@ -1,0 +1,98 @@
+openapi: 3.1.0
+info: {title: Takodu API, version: 1.0.0, description: Catalog categories and services API}
+servers: [{url: http://localhost:3000}]
+paths:
+  /v1/catalog:
+    get:
+      operationId: getCatalog
+      responses:
+        '200': {description: Ordered categories and services, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/Category'}}}}}
+        default: {$ref: '#/components/responses/Problem'}
+  /v1/catalog/categories:
+    post:
+      operationId: createCategory
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CategoryInput'}}}}
+      responses:
+        '201': {description: Category created, headers: {Location: {schema: {type: string}}, ETag: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Category'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+  /v1/catalog/categories/{id}:
+    parameters: [{$ref: '#/components/parameters/ID'}]
+    get:
+      operationId: getCategory
+      responses:
+        '200': {description: Category and its services, headers: {ETag: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Category'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+    put:
+      operationId: updateCategory
+      parameters: [{$ref: '#/components/parameters/IfMatch'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CategoryInput'}}}}
+      responses:
+        '200': {description: Category updated, headers: {ETag: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Category'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+    delete:
+      operationId: deleteCategory
+      parameters: [{$ref: '#/components/parameters/IfMatch'}]
+      responses:
+        '204': {description: Category and its services deleted}
+        default: {$ref: '#/components/responses/Problem'}
+  /v1/catalog/categories/{id}/placement:
+    parameters: [{$ref: '#/components/parameters/ID'}]
+    put:
+      operationId: moveCategory
+      parameters: [{$ref: '#/components/parameters/IfMatch'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CategoryPlacementInput'}}}}
+      responses:
+        '200': {description: Category moved, headers: {ETag: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Category'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+  /v1/catalog/categories/{id}/services:
+    parameters: [{$ref: '#/components/parameters/ID'}]
+    post:
+      operationId: createService
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ServiceCreateInput'}}}}
+      responses:
+        '201': {description: Service created, headers: {Location: {schema: {type: string}}, ETag: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Service'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+  /v1/catalog/services/{id}:
+    parameters: [{$ref: '#/components/parameters/ID'}]
+    get:
+      operationId: getService
+      responses:
+        '200': {description: Service, headers: {ETag: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Service'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+    put:
+      operationId: updateService
+      parameters: [{$ref: '#/components/parameters/IfMatch'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ServiceInput'}}}}
+      responses:
+        '200': {description: Service updated, headers: {ETag: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Service'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+    delete:
+      operationId: deleteService
+      parameters: [{$ref: '#/components/parameters/IfMatch'}]
+      responses:
+        '204': {description: Service deleted and positions compacted}
+        default: {$ref: '#/components/responses/Problem'}
+  /v1/catalog/services/{id}/placement:
+    parameters: [{$ref: '#/components/parameters/ID'}]
+    put:
+      operationId: moveService
+      parameters: [{$ref: '#/components/parameters/IfMatch'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/PlacementInput'}}}}
+      responses:
+        '200': {description: Service moved, headers: {ETag: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Service'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+components:
+  parameters:
+    ID: {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+    IfMatch: {name: If-Match, in: header, required: true, description: Strong version ETag from a GET response, schema: {type: string, pattern: '^"v[1-9][0-9]*"$'}}
+  responses:
+    Problem: {description: RFC 9457 Problem Details response, content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}
+  schemas:
+    CategoryInput: {type: object, additionalProperties: false, required: [name], properties: {name: {type: string, minLength: 1, maxLength: 120}}}
+    CategoryPlacementInput: {type: object, additionalProperties: false, required: [sort_order], properties: {sort_order: {type: integer, minimum: 1}}}
+    ServiceInput: {type: object, additionalProperties: false, required: [name, duration_minutes, currency_code], properties: {name: {type: string, minLength: 1, maxLength: 120}, duration_minutes: {type: integer, minimum: 1, maximum: 1440}, price_minor_units: {type: integer, format: int64, minimum: 0}, currency_code: {type: string, pattern: '^[A-Z]{3}$'}}}
+    ServiceCreateInput: {type: object, additionalProperties: false, required: [name, duration_minutes, currency_code], properties: {name: {type: string, minLength: 1, maxLength: 120}, duration_minutes: {type: integer, minimum: 1, maximum: 1440}, price_minor_units: {type: integer, format: int64, minimum: 0}, currency_code: {type: string, pattern: '^[A-Z]{3}$'}, sort_order: {type: integer, minimum: 1, description: Omit to append}}}
+    PlacementInput: {type: object, additionalProperties: false, required: [category_id, sort_order], properties: {category_id: {type: string, format: uuid}, sort_order: {type: integer, minimum: 1}}}
+    Category: {type: object, required: [id, name, sort_order, version, created_at, updated_at, services], properties: {id: {type: string, format: uuid}, name: {type: string}, sort_order: {type: integer, minimum: 1}, version: {type: integer, minimum: 1}, created_at: {type: string, format: date-time}, updated_at: {type: string, format: date-time}, services: {type: array, items: {$ref: '#/components/schemas/Service'}}}}
+    Service: {type: object, required: [id, category_id, name, duration_minutes, price_minor_units, currency_code, sort_order, version, created_at, updated_at], properties: {id: {type: string, format: uuid}, category_id: {type: string, format: uuid}, name: {type: string}, duration_minutes: {type: integer}, price_minor_units: {type: integer, format: int64}, currency_code: {type: string}, sort_order: {type: integer}, version: {type: integer}, created_at: {type: string, format: date-time}, updated_at: {type: string, format: date-time}}}
+    Problem: {type: object, required: [type, title, status, detail, instance, errors], properties: {type: {type: string}, title: {type: string}, status: {type: integer}, detail: {type: string}, instance: {type: string}, errors: {type: array, items: {type: object, required: [field, pointer, code, reason], properties: {field: {type: string}, pointer: {type: string}, code: {type: string}, reason: {type: string}}}}}}
