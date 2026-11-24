@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"go-service/internal/catalog/infrastructure/persistence/postgres"
+	sharedpostgres "go-service/internal/shared/postgres"
 )
 
 func newTestStore(t *testing.T) *postgres.Store {
@@ -60,10 +61,10 @@ func newTestStore(t *testing.T) *postgres.Store {
 		t.Fatalf("open isolated PostgreSQL connection: %v", err)
 	}
 	db.SetMaxOpenConns(8)
-	if err := postgres.Migrate(ctx, db); err != nil {
+	if err := sharedpostgres.Migrate(ctx, db, "../../../../migrations"); err != nil {
 		t.Fatalf("migrate test schema: %v", err)
 	}
-	if err := postgres.Migrate(ctx, db); err != nil {
+	if err := sharedpostgres.Migrate(ctx, db, "../../../../migrations"); err != nil {
 		t.Fatalf("repeat catalog migration: %v", err)
 	}
 	return postgres.NewStore(db)

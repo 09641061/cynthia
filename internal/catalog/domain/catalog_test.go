@@ -33,23 +33,22 @@ func TestValidateName(t *testing.T) {
 func TestValidateService(t *testing.T) {
 	validName := "Consultation"
 	tests := []struct {
-		name                  string
-		serviceName           string
-		description, currency string
-		duration              int
-		price                 int64
-		wantErr               bool
+		name        string
+		serviceName string
+		currency    string
+		duration    int
+		price       int64
+		wantErr     bool
 	}{
-		{name: "minimum values", description: "", currency: "USD", duration: 1, price: 0},
-		{name: "maximum values", description: strings.Repeat("x", 2000), currency: "EUR", duration: 1440, price: 1},
-		{name: "invalid name", serviceName: " ", description: "", currency: "USD", duration: 1, wantErr: true},
-		{name: "long description", description: strings.Repeat("x", 2001), currency: "USD", duration: 1, wantErr: true},
-		{name: "duration below minimum", description: "", currency: "USD", duration: 0, wantErr: true},
-		{name: "duration above maximum", description: "", currency: "USD", duration: 1441, wantErr: true},
-		{name: "negative price", description: "", currency: "USD", duration: 1, price: -1, wantErr: true},
-		{name: "lowercase currency", description: "", currency: "usd", duration: 1, wantErr: true},
-		{name: "non-letter currency", description: "", currency: "U1D", duration: 1, wantErr: true},
-		{name: "wrong currency length", description: "", currency: "US", duration: 1, wantErr: true},
+		{name: "minimum values", currency: "USD", duration: 1, price: 0},
+		{name: "maximum values", currency: "EUR", duration: 1440, price: 1},
+		{name: "invalid name", serviceName: " ", currency: "USD", duration: 1, wantErr: true},
+		{name: "duration below minimum", currency: "USD", duration: 0, wantErr: true},
+		{name: "duration above maximum", currency: "USD", duration: 1441, wantErr: true},
+		{name: "negative price", currency: "USD", duration: 1, price: -1, wantErr: true},
+		{name: "lowercase currency", currency: "usd", duration: 1, wantErr: true},
+		{name: "non-letter currency", currency: "U1D", duration: 1, wantErr: true},
+		{name: "wrong currency length", currency: "US", duration: 1, wantErr: true},
 	}
 
 	for _, test := range tests {
@@ -58,7 +57,7 @@ func TestValidateService(t *testing.T) {
 			if serviceName == "" {
 				serviceName = validName
 			}
-			err := ValidateService(serviceName, test.description, test.duration, test.price, test.currency)
+			err := ValidateService(serviceName, test.duration, test.price, test.currency)
 			if (err != nil) != test.wantErr {
 				t.Fatalf("ValidateService() error = %v, want error %t", err, test.wantErr)
 			}

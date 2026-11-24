@@ -37,7 +37,6 @@ type Service struct {
 	ID             string    `json:"id"`
 	CategoryID     string    `json:"category_id"`
 	Name           string    `json:"name"`
-	Description    string    `json:"description"`
 	DurationMinute int       `json:"duration_minutes"`
 	PriceMinor     int64     `json:"price_minor_units"`
 	CurrencyCode   string    `json:"currency_code"`
@@ -59,12 +58,9 @@ func ValidateName(name string) error {
 }
 
 // ValidateService checks the catalog service fields and supported ranges.
-func ValidateService(name, description string, duration int, price int64, currency string) error {
+func ValidateService(name string, duration int, price int64, currency string) error {
 	if err := ValidateName(name); err != nil {
 		return err
-	}
-	if len([]rune(description)) > 2000 {
-		return InvalidFieldError{Field: "description", Reason: "must not exceed 2000 characters"}
 	}
 	if duration < 1 || duration > 1440 {
 		return InvalidFieldError{Field: "duration_minutes", Reason: "must be between 1 and 1440"}

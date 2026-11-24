@@ -11,10 +11,7 @@ import (
 )
 
 // NewModule initializes the catalog module and registers its routes.
-func NewModule(ctx context.Context, db *sql.DB, router gin.IRouter) error {
-	if err := postgres.Migrate(ctx, db); err != nil {
-		return err
-	}
+func NewModule(_ context.Context, db *sql.DB, router gin.IRouter) error {
 	store := postgres.NewStore(db)
 	useCases := application.NewCatalog(store)
 	rest.RegisterRoutes(router.Group("/v1"), useCases)

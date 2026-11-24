@@ -111,6 +111,16 @@ func TestCreateAndMoveService(t *testing.T) {
 	}
 }
 
+func TestCreateServiceRejectsRemovedDescription(t *testing.T) {
+	request := httptest.NewRequest(http.MethodPost, "/v1/catalog/categories/"+newTestUUID()+"/services", strings.NewReader(`{"name":"Cut","description":"obsolete","duration_minutes":30,"currency_code":"USD"}`))
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	routerForTest(&fakeStore{}).ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", recorder.Code)
+	}
+}
+
 func TestCreateServiceRejectsInvalidDuration(t *testing.T) {
 	request := httptest.NewRequest(http.MethodPost, "/v1/catalog/categories/"+newTestUUID()+"/services", strings.NewReader(`{"name":"Cut","duration_minutes":0,"currency_code":"USD"}`))
 	request.Header.Set("Content-Type", "application/json")

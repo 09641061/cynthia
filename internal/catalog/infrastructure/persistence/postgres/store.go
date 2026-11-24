@@ -18,7 +18,7 @@ type Store struct{ db *sql.DB }
 func NewStore(db *sql.DB) *Store { return &Store{db: db} }
 
 func categoryServices(ctx context.Context, tx *sql.Tx, categoryID string) ([]domain.Service, error) {
-	rows, err := tx.QueryContext(ctx, `SELECT id, category_id, name, description, duration_minutes,
+	rows, err := tx.QueryContext(ctx, `SELECT id, category_id, name, duration_minutes,
 		price_minor_units, currency_code, sort_order, version, created_at, updated_at
 		FROM catalog_services WHERE category_id = $1 ORDER BY sort_order`, categoryID)
 	if err != nil {
@@ -27,7 +27,7 @@ func categoryServices(ctx context.Context, tx *sql.Tx, categoryID string) ([]dom
 	services := make([]domain.Service, 0)
 	for rows.Next() {
 		var service domain.Service
-		if err := rows.Scan(&service.ID, &service.CategoryID, &service.Name, &service.Description,
+		if err := rows.Scan(&service.ID, &service.CategoryID, &service.Name,
 			&service.DurationMinute, &service.PriceMinor, &service.CurrencyCode, &service.SortOrder,
 			&service.Version, &service.CreatedAt, &service.UpdatedAt); err != nil {
 			return nil, errors.Join(fmt.Errorf("scan category service: %w", err), rows.Close())
