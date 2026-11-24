@@ -4,6 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+
+	sharedrest "go-service/internal/shared/rest"
 )
 
 func (h Handler) createService(c *gin.Context) {
@@ -12,7 +14,7 @@ func (h Handler) createService(c *gin.Context) {
 		return
 	}
 	var request createServiceRequest
-	if !bindJSON(c, &request) {
+	if !sharedrest.BindJSON(c, &request) {
 		return
 	}
 	service, err := h.catalog.CreateService(c.Request.Context(), categoryID, request.service(), request.SortOrder)
@@ -22,7 +24,7 @@ func (h Handler) createService(c *gin.Context) {
 	}
 	c.Header("Cache-Control", "no-store")
 	c.Header("Location", "/v1/catalog/services/"+service.ID)
-	c.Header("ETag", entityTag(service.Version))
+	c.Header("ETag", sharedrest.EntityTag(service.Version))
 	c.JSON(http.StatusCreated, service)
 }
 
@@ -31,12 +33,12 @@ func (h Handler) updateService(c *gin.Context) {
 	if !ok {
 		return
 	}
-	version, ok := ifMatch(c)
+	version, ok := sharedrest.IfMatch(c)
 	if !ok {
 		return
 	}
 	var request serviceRequest
-	if !bindJSON(c, &request) {
+	if !sharedrest.BindJSON(c, &request) {
 		return
 	}
 	service, err := h.catalog.UpdateService(c.Request.Context(), id, request.service(), version)
@@ -45,7 +47,7 @@ func (h Handler) updateService(c *gin.Context) {
 		return
 	}
 	c.Header("Cache-Control", "no-store")
-	c.Header("ETag", entityTag(service.Version))
+	c.Header("ETag", sharedrest.EntityTag(service.Version))
 	c.JSON(http.StatusOK, service)
 }
 
@@ -54,7 +56,7 @@ func (h Handler) deleteService(c *gin.Context) {
 	if !ok {
 		return
 	}
-	version, ok := ifMatch(c)
+	version, ok := sharedrest.IfMatch(c)
 	if !ok {
 		return
 	}
@@ -71,12 +73,12 @@ func (h Handler) moveService(c *gin.Context) {
 	if !ok {
 		return
 	}
-	version, ok := ifMatch(c)
+	version, ok := sharedrest.IfMatch(c)
 	if !ok {
 		return
 	}
 	var request placementRequest
-	if !bindJSON(c, &request) {
+	if !sharedrest.BindJSON(c, &request) {
 		return
 	}
 	categoryID, ok := normalizeID(request.CategoryID)
@@ -90,6 +92,6 @@ func (h Handler) moveService(c *gin.Context) {
 		return
 	}
 	c.Header("Cache-Control", "no-store")
-	c.Header("ETag", entityTag(service.Version))
+	c.Header("ETag", sharedrest.EntityTag(service.Version))
 	c.JSON(http.StatusOK, service)
 }

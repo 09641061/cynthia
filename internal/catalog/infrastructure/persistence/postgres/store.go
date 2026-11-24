@@ -9,13 +9,14 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"go-service/internal/catalog/application"
 	"go-service/internal/catalog/domain"
+	sharedpostgres "go-service/internal/shared/postgres"
 )
 
 // Store persists catalog records in PostgreSQL.
-type Store struct{ db *sql.DB }
+type Store struct{ db *sharedpostgres.Client }
 
 // NewStore creates a PostgreSQL catalog store.
-func NewStore(db *sql.DB) *Store { return &Store{db: db} }
+func NewStore(db *sharedpostgres.Client) *Store { return &Store{db: db} }
 
 func categoryServices(ctx context.Context, tx *sql.Tx, categoryID string) ([]domain.Service, error) {
 	rows, err := tx.QueryContext(ctx, `SELECT id, category_id, name, duration_minutes,
@@ -44,15 +45,24 @@ func categoryServices(ctx context.Context, tx *sql.Tx, categoryID string) ([]dom
 }
 
 func (s *Store) write(ctx context.Context, action func(*sql.Tx) error) error {
+	return s.db.Do(ctx, func() error { return s.writeTransaction(ctx, action) })
+}
+
+func (s *Store) writeTransaction(ctx context.Context, action func(*sql.Tx) error) (resultErr error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin catalog transaction: %w", err)
 	}
+	defer func() {
+		if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
+			resultErr = errors.Join(resultErr, fmt.Errorf("rollback catalog transaction: %w", err))
+		}
+	}()
 	if _, err := tx.ExecContext(ctx, `LOCK TABLE catalog_categories, catalog_services IN SHARE ROW EXCLUSIVE MODE`); err != nil {
-		return errors.Join(fmt.Errorf("lock catalog tables: %w", err), tx.Rollback())
+		return fmt.Errorf("lock catalog tables: %w", err)
 	}
 	if err := action(tx); err != nil {
-		return errors.Join(err, tx.Rollback())
+		return err
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit catalog transaction: %w", err)

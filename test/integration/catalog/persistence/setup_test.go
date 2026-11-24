@@ -8,10 +8,12 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"go-service/internal/catalog/infrastructure/persistence/postgres"
+	"go-service/internal/shared/circuitbreaker"
 	sharedpostgres "go-service/internal/shared/postgres"
 )
 
@@ -67,5 +69,9 @@ func newTestStore(t *testing.T) *postgres.Store {
 	if err := sharedpostgres.Migrate(ctx, db, "../../../../migrations"); err != nil {
 		t.Fatalf("repeat catalog migration: %v", err)
 	}
-	return postgres.NewStore(db)
+	breaker, err := circuitbreaker.New(5, 30*time.Second)
+	if err != nil {
+		t.Fatalf("configure circuit breaker: %v", err)
+	}
+	return postgres.NewStore(sharedpostgres.NewClient(db, breaker))
 }

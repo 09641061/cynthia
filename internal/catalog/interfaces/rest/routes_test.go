@@ -10,8 +10,10 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+
 	"go-service/internal/catalog/application"
 	"go-service/internal/catalog/domain"
+	sharedrest "go-service/internal/shared/rest"
 )
 
 func routerForTest(store *fakeStore) *gin.Engine {
@@ -52,7 +54,7 @@ func TestInvalidCategoryReturnsProblemDetails(t *testing.T) {
 	if got := recorder.Header().Get("Content-Type"); got != "application/problem+json" {
 		t.Fatalf("Content-Type = %q", got)
 	}
-	var result problem
+	var result sharedrest.Problem
 	if err := json.Unmarshal(recorder.Body.Bytes(), &result); err != nil {
 		t.Fatalf("decode problem: %v", err)
 	}

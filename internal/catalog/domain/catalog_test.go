@@ -47,6 +47,7 @@ func TestValidateService(t *testing.T) {
 		{name: "duration above maximum", currency: "USD", duration: 1441, wantErr: true},
 		{name: "negative price", currency: "USD", duration: 1, price: -1, wantErr: true},
 		{name: "lowercase currency", currency: "usd", duration: 1, wantErr: true},
+		{name: "currency with surrounding spaces", currency: " USD ", duration: 1, wantErr: true},
 		{name: "non-letter currency", currency: "U1D", duration: 1, wantErr: true},
 		{name: "wrong currency length", currency: "US", duration: 1, wantErr: true},
 	}
