@@ -10,7 +10,7 @@ import (
 	"go-service/internal/catalog/domain"
 )
 
-func (s *Store) List(ctx context.Context) (categories []domain.Category, resultErr error) {
+func (s *Store) list(ctx context.Context) (categories []domain.Category, resultErr error) {
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true, Isolation: sql.LevelRepeatableRead})
 	if err != nil {
 		return nil, fmt.Errorf("begin catalog read: %w", err)
@@ -79,7 +79,7 @@ func listServices(ctx context.Context, tx *sql.Tx, indexes map[string]int, categ
 	return nil
 }
 
-func (s *Store) GetCategory(ctx context.Context, id string) (category domain.Category, resultErr error) {
+func (s *Store) getCategory(ctx context.Context, id string) (category domain.Category, resultErr error) {
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true, Isolation: sql.LevelRepeatableRead})
 	if err != nil {
 		return category, fmt.Errorf("begin category read: %w", err)
@@ -107,7 +107,7 @@ func (s *Store) GetCategory(ctx context.Context, id string) (category domain.Cat
 	return category, nil
 }
 
-func (s *Store) GetService(ctx context.Context, id string) (domain.Service, error) {
+func (s *Store) getService(ctx context.Context, id string) (domain.Service, error) {
 	var service domain.Service
 	err := s.db.QueryRowContext(ctx, `SELECT id, category_id, name, duration_minutes,
 		price_minor_units, currency_code, sort_order, version, created_at, updated_at

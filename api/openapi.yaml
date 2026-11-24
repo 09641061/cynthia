@@ -81,6 +81,19 @@ paths:
       responses:
         '200': {description: Service moved, headers: {ETag: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Service'}}}}
         default: {$ref: '#/components/responses/Problem'}
+  /v1/organization:
+    get:
+      operationId: getOrganization
+      responses:
+        '200': {description: Organization profile, headers: {ETag: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Organization'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+    patch:
+      operationId: patchOrganization
+      parameters: [{$ref: '#/components/parameters/IfMatch'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/OrganizationPatchInput'}}}}
+      responses:
+        '200': {description: Organization profile updated, headers: {ETag: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Organization'}}}}
+        default: {$ref: '#/components/responses/Problem'}
 components:
   parameters:
     ID: {name: id, in: path, required: true, schema: {type: string, format: uuid}}
@@ -95,4 +108,8 @@ components:
     PlacementInput: {type: object, additionalProperties: false, required: [category_id, sort_order], properties: {category_id: {type: string, format: uuid}, sort_order: {type: integer, minimum: 1}}}
     Category: {type: object, required: [id, name, sort_order, version, created_at, updated_at, services], properties: {id: {type: string, format: uuid}, name: {type: string}, sort_order: {type: integer, minimum: 1}, version: {type: integer, minimum: 1}, created_at: {type: string, format: date-time}, updated_at: {type: string, format: date-time}, services: {type: array, items: {$ref: '#/components/schemas/Service'}}}}
     Service: {type: object, required: [id, category_id, name, duration_minutes, price_minor_units, currency_code, sort_order, version, created_at, updated_at], properties: {id: {type: string, format: uuid}, category_id: {type: string, format: uuid}, name: {type: string}, duration_minutes: {type: integer}, price_minor_units: {type: integer, format: int64}, currency_code: {type: string}, sort_order: {type: integer}, version: {type: integer}, created_at: {type: string, format: date-time}, updated_at: {type: string, format: date-time}}}
+    DayHours: {type: object, additionalProperties: false, required: [is_open, open_time, close_time], properties: {is_open: {type: boolean}, open_time: {type: string, pattern: '^[0-2][0-9]:[0-5][0-9]$'}, close_time: {type: string, pattern: '^[0-2][0-9]:[0-5][0-9]$'}}}
+    BusinessHours: {type: object, additionalProperties: false, required: [monday, tuesday, wednesday, thursday, friday, saturday, sunday], properties: {monday: {$ref: '#/components/schemas/DayHours'}, tuesday: {$ref: '#/components/schemas/DayHours'}, wednesday: {$ref: '#/components/schemas/DayHours'}, thursday: {$ref: '#/components/schemas/DayHours'}, friday: {$ref: '#/components/schemas/DayHours'}, saturday: {$ref: '#/components/schemas/DayHours'}, sunday: {$ref: '#/components/schemas/DayHours'}}}
+    OrganizationPatchInput: {type: object, additionalProperties: false, properties: {name: {type: string, minLength: 1, maxLength: 120}, business_type: {type: string, maxLength: 120}, contact_email: {type: string, maxLength: 254}, timezone: {type: string, minLength: 1, maxLength: 120}, business_hours: {$ref: '#/components/schemas/BusinessHours'}, ai_instructions: {type: string, maxLength: 4000}}}
+    Organization: {type: object, required: [id, name, business_type, contact_email, timezone, business_hours, ai_instructions, version, created_at, updated_at], properties: {id: {type: string, format: uuid}, name: {type: string}, business_type: {type: string}, contact_email: {type: string}, timezone: {type: string}, business_hours: {$ref: '#/components/schemas/BusinessHours'}, ai_instructions: {type: string}, version: {type: integer, minimum: 1}, created_at: {type: string, format: date-time}, updated_at: {type: string, format: date-time}}}
     Problem: {type: object, required: [type, title, status, detail, instance, errors], properties: {type: {type: string}, title: {type: string}, status: {type: integer}, detail: {type: string}, instance: {type: string}, errors: {type: array, items: {type: object, required: [field, pointer, code, reason], properties: {field: {type: string}, pointer: {type: string}, code: {type: string}, reason: {type: string}}}}}}

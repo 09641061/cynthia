@@ -1,19 +1,16 @@
 package bootstrap
 
 import (
-	"context"
-	"database/sql"
-	"fmt"
-
 	"github.com/gin-gonic/gin"
 	"go-service/internal/catalog"
+	"go-service/internal/organizations"
+	"go-service/internal/shared/postgres"
 )
 
-func newRouter(ctx context.Context, db *sql.DB) (*gin.Engine, error) {
+func newRouter(db *postgres.Client) *gin.Engine {
 	router := gin.Default()
-	if err := catalog.NewModule(ctx, db, router); err != nil {
-		return nil, fmt.Errorf("initialize catalog: %w", err)
-	}
+	catalog.NewModule(db, router)
+	organizations.NewModule(db, router)
 	router.StaticFile("/openapi.yaml", "api/openapi.yaml")
-	return router, nil
+	return router
 }

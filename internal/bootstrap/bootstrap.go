@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"go-service/internal/bootstrap/config"
+	"go-service/internal/shared/circuitbreaker"
 	"go-service/internal/shared/postgres"
 )
 
@@ -31,10 +32,11 @@ func Run(ctx context.Context) (resultErr error) {
 	if err := postgres.Migrate(startupCtx, db, cfg.MigrationsDir); err != nil {
 		return fmt.Errorf("migrate database: %w", err)
 	}
-	router, err := newRouter(startupCtx, db)
+	breaker, err := circuitbreaker.New(5, 30*time.Second)
 	if err != nil {
-		return err
+		return fmt.Errorf("configure PostgreSQL circuit breaker: %w", err)
 	}
+	router := newRouter(postgres.NewClient(db, breaker))
 	server := &http.Server{Addr: ":" + cfg.Port, Handler: router, ReadHeaderTimeout: cfg.ReadHeaderTimeout}
 	return serve(ctx, server, cfg.ShutdownTimeout)
 }
