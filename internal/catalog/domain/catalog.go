@@ -68,7 +68,7 @@ func ValidateService(name string, duration int, price int64, currency string) er
 	if price < 0 {
 		return InvalidFieldError{Field: "price_minor_units", Reason: "must not be negative"}
 	}
-	if len(currency) != 3 || strings.ToUpper(currency) != currency {
+	if len(currency) != 3 {
 		return InvalidFieldError{Field: "currency_code", Reason: "must be three uppercase letters"}
 	}
 	for _, char := range currency {
