@@ -8,6 +8,6 @@ pkgs.mkShell {
   ];
 
   shellHook = ''
-    echo "Ready. Run: make run"
+    echo "Ready. Run verification with: make verify"
   '';
 }
