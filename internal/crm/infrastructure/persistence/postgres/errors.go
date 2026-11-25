@@ -4,7 +4,6 @@ import (
 	"errors"
 	"strconv"
 	"strings"
-	"unicode"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"go-service/internal/crm/application"
@@ -13,7 +12,24 @@ import (
 const (
 	pgErrUniqueViolation     = "23505"
 	pgErrForeignKeyViolation = "23503"
+	maxSearchQueryRunes      = 200
+	maxSearchTokens          = 8
 )
+
+var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+
+func escapeLike(s string) string { return likeEscaper.Replace(s) }
+
+func truncateRunes(s string, maxRunes int) string {
+	n := 0
+	for i := range s {
+		if n == maxRunes {
+			return s[:i]
+		}
+		n++
+	}
+	return s
+}
 
 func isPGCode(err error, code string) bool {
 	var pgErr *pgconn.PgError
@@ -21,14 +37,33 @@ func isPGCode(err error, code string) bool {
 }
 
 func buildCustomerFilter(query string) (string, []any) {
-	if query == "" {
+	tokens := strings.Fields(truncateRunes(query, maxSearchQueryRunes))
+	if len(tokens) == 0 {
 		return "", nil
 	}
-	digits := extractDigits(query)
-	if digits != "" {
-		return `WHERE name ILIKE '%' || $1 || '%' OR regexp_replace(phone, '[^0-9]', '', 'g') LIKE '%' || $2 || '%'`, []any{query, digits}
+	if len(tokens) > maxSearchTokens {
+		tokens = tokens[:maxSearchTokens]
 	}
-	return `WHERE name ILIKE '%' || $1 || '%'`, []any{query}
+	clauses := make([]string, 0, len(tokens))
+	args := make([]any, 0, len(tokens)*2)
+	for _, token := range tokens {
+		if token == "+" {
+			args = append(args, "+")
+			qIdx := strconv.Itoa(len(args))
+			clauses = append(clauses, `(name ILIKE '%' || $`+qIdx+` || '%' ESCAPE '\' OR phone LIKE '+%')`)
+			continue
+		}
+		args = append(args, escapeLike(token))
+		qIdx := strconv.Itoa(len(args))
+		if digits := extractDigits(token); digits != "" {
+			args = append(args, digits)
+			dIdx := strconv.Itoa(len(args))
+			clauses = append(clauses, `(name ILIKE '%' || $`+qIdx+` || '%' ESCAPE '\' OR regexp_replace(phone, '[^0-9]', '', 'g') LIKE '%' || $`+dIdx+` || '%' ESCAPE '\')`)
+			continue
+		}
+		clauses = append(clauses, `name ILIKE '%' || $`+qIdx+` || '%' ESCAPE '\'`)
+	}
+	return "WHERE " + strings.Join(clauses, " AND "), args
 }
 
 func buildConversationFilter(filter application.ConversationFilter) (string, []any) {
@@ -63,7 +98,7 @@ func buildConversationFilter(filter application.ConversationFilter) (string, []a
 func extractDigits(s string) string {
 	var b strings.Builder
 	for _, r := range s {
-		if unicode.IsDigit(r) {
+		if '0' <= r && r <= '9' {
 			b.WriteRune(r)
 		}
 	}

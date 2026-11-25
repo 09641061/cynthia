@@ -23,14 +23,21 @@ func newFakeCustomerStore() *fakeCustomerStore {
 }
 
 func (f *fakeCustomerStore) ListCustomers(_ context.Context, query string, page, pageSize int) ([]domain.Customer, int, error) {
-	q := strings.ToLower(query)
+	rawTokens := strings.Fields(query)
+	if len(rawTokens) > 8 {
+		rawTokens = rawTokens[:8]
+	}
+	tokens := make([]string, len(rawTokens))
+	for i, t := range rawTokens {
+		tokens[i] = strings.ToLower(t)
+	}
 	matched := make([]domain.Customer, 0)
 	for _, id := range f.createOrder {
 		c, ok := f.customers[id]
 		if !ok {
 			continue
 		}
-		if q == "" || strings.Contains(strings.ToLower(c.Name), q) || strings.Contains(c.Phone, q) {
+		if len(tokens) == 0 || customerMatchesTokens(c, tokens) {
 			matched = append(matched, c)
 		}
 	}
@@ -44,6 +51,30 @@ func (f *fakeCustomerStore) ListCustomers(_ context.Context, query string, page,
 		end = total
 	}
 	return matched[start:end], total, nil
+}
+
+func asciiDigits(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if '0' <= r && r <= '9' {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+func customerMatchesTokens(c domain.Customer, tokens []string) bool {
+	name, phoneDigits := strings.ToLower(c.Name), asciiDigits(c.Phone)
+	for _, tok := range tokens {
+		if strings.Contains(name, tok) || (tok == "+" && strings.Contains(c.Phone, "+")) {
+			continue
+		}
+		if d := asciiDigits(tok); d != "" && strings.Contains(phoneDigits, d) {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func (f *fakeCustomerStore) GetCustomer(_ context.Context, id string) (domain.Customer, error) {
