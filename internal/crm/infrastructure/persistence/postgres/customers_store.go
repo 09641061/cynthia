@@ -79,7 +79,10 @@ func (s *Store) CreateCustomer(ctx context.Context, customer domain.Customer) (d
 	if isPGCode(err, pgErrUniqueViolation) {
 		existing, lookupErr := s.GetCustomerByPhone(ctx, customer.Phone)
 		if lookupErr != nil {
-			return domain.Customer{}, application.ErrConflict
+			if errors.Is(lookupErr, application.ErrNotFound) {
+				return domain.Customer{}, application.ErrConflict
+			}
+			return domain.Customer{}, lookupErr
 		}
 		return domain.Customer{}, application.DuplicatePhoneError{Existing: existing}
 	}
@@ -98,13 +101,16 @@ func (s *Store) UpdateCustomer(ctx context.Context, id string, expectedVersion i
 	if isPGCode(err, pgErrUniqueViolation) {
 		existing, lookupErr := s.GetCustomerByPhone(ctx, phone)
 		if lookupErr != nil {
-			return domain.Customer{}, application.ErrConflict
+			if errors.Is(lookupErr, application.ErrNotFound) {
+				return domain.Customer{}, application.ErrConflict
+			}
+			return domain.Customer{}, lookupErr
 		}
 		return domain.Customer{}, application.DuplicatePhoneError{Existing: existing}
 	}
 	if errors.Is(err, sql.ErrNoRows) {
-		if _, getErr := s.GetCustomer(ctx, id); errors.Is(getErr, application.ErrNotFound) {
-			return domain.Customer{}, application.ErrNotFound
+		if _, getErr := s.GetCustomer(ctx, id); getErr != nil {
+			return domain.Customer{}, getErr
 		}
 		return domain.Customer{}, application.ErrPreconditionFailed
 	}

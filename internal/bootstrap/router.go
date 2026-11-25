@@ -11,7 +11,7 @@ import (
 func newRouter(db *postgres.Client) *gin.Engine {
 	router := gin.Default()
 	catalog.NewModule(db, router)
-	crm.NewModule(db, router)
+	crm.NewModule(db, router, organizations.NewWhatsAppConfigReader(db))
 	organizations.NewModule(db, router)
 	router.StaticFile("/openapi.yaml", "api/openapi.yaml")
 	return router

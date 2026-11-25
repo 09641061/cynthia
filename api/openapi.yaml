@@ -131,6 +131,71 @@ paths:
       responses:
         '200': {description: Organization profile updated, headers: {ETag: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Organization'}}}}
         default: {$ref: '#/components/responses/Problem'}
+  /v1/conversations:
+    get:
+      operationId: listConversations
+      parameters:
+        - {name: q, in: query, schema: {type: string}}
+        - {name: status, in: query, schema: {type: string, enum: [all, open, closed]}}
+        - {name: customer_id, in: query, schema: {type: string, format: uuid}}
+        - {name: page, in: query, schema: {type: integer, minimum: 1}}
+        - {name: page_size, in: query, schema: {type: integer, minimum: 1, maximum: 100}}
+      responses:
+        '200': {description: Paginated conversations, content: {application/json: {schema: {$ref: '#/components/schemas/ConversationPage'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+  /v1/conversations/{id}/messages:
+    get:
+      operationId: listConversationMessages
+      parameters:
+        - {$ref: '#/components/parameters/ID'}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 200}}
+        - {name: before, in: query, schema: {type: string, format: date-time}}
+      responses:
+        '200': {description: Conversation messages, content: {application/json: {schema: {$ref: '#/components/schemas/MessageList'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+    post:
+      operationId: sendConversationMessage
+      parameters:
+        - {$ref: '#/components/parameters/ID'}
+        - {name: Idempotency-Key, in: header, required: true, schema: {type: string, minLength: 1}}
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/SendMessageInput'}}}}
+      responses:
+        '201': {description: Outbound message sent, content: {application/json: {schema: {$ref: '#/components/schemas/Message'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+  /v1/conversations/{id}/status:
+    patch:
+      operationId: updateConversationStatus
+      parameters:
+        - {$ref: '#/components/parameters/ID'}
+        - {$ref: '#/components/parameters/IfMatch'}
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ConversationStatusInput'}}}}
+      responses:
+        '200': {description: Conversation status updated, headers: {ETag: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Conversation'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+  /v1/crm/webhooks/whatsapp:
+    get:
+      operationId: verifyWhatsAppWebhook
+      parameters:
+        - {name: hub.mode, in: query, schema: {type: string}}
+        - {name: hub.verify_token, in: query, schema: {type: string}}
+        - {name: hub.challenge, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Webhook challenge accepted, content: {text/plain: {schema: {type: string}}}}
+        default: {$ref: '#/components/responses/Problem'}
+    post:
+      operationId: receiveWhatsAppWebhook
+      parameters:
+        - {name: X-Hub-Signature-256, in: header, required: true, schema: {type: string}}
+      requestBody: {required: true, content: {application/json: {schema: {type: object}}}}
+      responses:
+        '200': {description: Webhook processed}
+        default: {$ref: '#/components/responses/Problem'}
+  /v1/crm/events:
+    get:
+      operationId: streamCRMEvents
+      responses:
+        '200': {description: Server-Sent Events stream of CRM updates, content: {text/event-stream: {schema: {type: string}}}}
+        default: {$ref: '#/components/responses/Problem'}
 components:
   parameters:
     ID: {name: id, in: path, required: true, schema: {type: string, format: uuid}}
@@ -150,6 +215,12 @@ components:
     CustomerPage: {type: object, required: [items, total, page, page_size], properties: {items: {type: array, items: {$ref: '#/components/schemas/Customer'}}, total: {type: integer, minimum: 0}, page: {type: integer, minimum: 1}, page_size: {type: integer, minimum: 1}}}
     DayHours: {type: object, additionalProperties: false, required: [is_open, open_time, close_time], properties: {is_open: {type: boolean}, open_time: {type: string, pattern: '^[0-2][0-9]:[0-5][0-9]$'}, close_time: {type: string, pattern: '^[0-2][0-9]:[0-5][0-9]$'}}}
     BusinessHours: {type: object, additionalProperties: false, required: [monday, tuesday, wednesday, thursday, friday, saturday, sunday], properties: {monday: {$ref: '#/components/schemas/DayHours'}, tuesday: {$ref: '#/components/schemas/DayHours'}, wednesday: {$ref: '#/components/schemas/DayHours'}, thursday: {$ref: '#/components/schemas/DayHours'}, friday: {$ref: '#/components/schemas/DayHours'}, saturday: {$ref: '#/components/schemas/DayHours'}, sunday: {$ref: '#/components/schemas/DayHours'}}}
-    OrganizationPatchInput: {type: object, additionalProperties: false, properties: {name: {type: string, minLength: 1, maxLength: 120}, business_type: {type: string, maxLength: 120}, contact_email: {type: string, maxLength: 254}, timezone: {type: string, minLength: 1, maxLength: 120}, business_hours: {$ref: '#/components/schemas/BusinessHours'}, ai_instructions: {type: string, maxLength: 4000}}}
-    Organization: {type: object, required: [id, name, business_type, contact_email, timezone, business_hours, ai_instructions, version, created_at, updated_at], properties: {id: {type: string, format: uuid}, name: {type: string}, business_type: {type: string}, contact_email: {type: string}, timezone: {type: string}, business_hours: {$ref: '#/components/schemas/BusinessHours'}, ai_instructions: {type: string}, version: {type: integer, minimum: 1}, created_at: {type: string, format: date-time}, updated_at: {type: string, format: date-time}}}
-    Problem: {type: object, required: [type, title, status, detail, instance, errors], properties: {type: {type: string}, title: {type: string}, status: {type: integer}, detail: {type: string}, instance: {type: string}, existing_customer: {$ref: '#/components/schemas/Customer'}, errors: {type: array, items: {type: object, required: [field, pointer, code, reason], properties: {field: {type: string}, pointer: {type: string}, code: {type: string}, reason: {type: string}}}}}}
+    OrganizationPatchInput: {type: object, additionalProperties: false, properties: {name: {type: string, minLength: 1, maxLength: 120}, business_type: {type: string, maxLength: 120}, contact_email: {type: string, maxLength: 254}, timezone: {type: string, minLength: 1, maxLength: 120}, business_hours: {$ref: '#/components/schemas/BusinessHours'}, ai_instructions: {type: string, maxLength: 4000}, whatsapp_phone_number: {type: string, maxLength: 16}, whatsapp_phone_number_id: {type: string, maxLength: 64}, whatsapp_enabled: {type: boolean}}}
+    Organization: {type: object, required: [id, name, business_type, contact_email, timezone, business_hours, ai_instructions, whatsapp_phone_number, whatsapp_phone_number_id, whatsapp_enabled, version, created_at, updated_at], properties: {id: {type: string, format: uuid}, name: {type: string}, business_type: {type: string}, contact_email: {type: string}, timezone: {type: string}, business_hours: {$ref: '#/components/schemas/BusinessHours'}, ai_instructions: {type: string}, whatsapp_phone_number: {type: string}, whatsapp_phone_number_id: {type: string}, whatsapp_enabled: {type: boolean}, version: {type: integer, minimum: 1}, created_at: {type: string, format: date-time}, updated_at: {type: string, format: date-time}}}
+    Conversation: {type: object, required: [id, customer_id, channel, status, version, created_at, updated_at], properties: {id: {type: string, format: uuid}, customer_id: {type: string, format: uuid}, channel: {type: string}, status: {type: string, enum: [open, closed]}, version: {type: integer, minimum: 1}, last_message_at: {type: string, format: date-time}, last_message_preview: {type: string}, created_at: {type: string, format: date-time}, updated_at: {type: string, format: date-time}}}
+    ConversationPage: {type: object, required: [items, total, page, page_size], properties: {items: {type: array, items: {$ref: '#/components/schemas/Conversation'}}, total: {type: integer, minimum: 0}, page: {type: integer, minimum: 1}, page_size: {type: integer, minimum: 1}}}
+    Message: {type: object, required: [id, conversation_id, direction, content, status, created_at], properties: {id: {type: string, format: uuid}, conversation_id: {type: string, format: uuid}, external_id: {type: string}, idempotency_key: {type: string}, direction: {type: string, enum: [inbound, outbound]}, content: {type: string}, status: {type: string, enum: [received, pending, sent, delivered, failed, uncertain]}, created_at: {type: string, format: date-time}}}
+    MessageList: {type: object, required: [items], properties: {items: {type: array, items: {$ref: '#/components/schemas/Message'}}}}
+    SendMessageInput: {type: object, additionalProperties: false, required: [content], properties: {content: {type: string, minLength: 1, maxLength: 4096}}}
+    ConversationStatusInput: {type: object, additionalProperties: false, required: [status], properties: {status: {type: string, enum: [open, closed]}}}
+    Problem: {type: object, required: [type, title, status, detail, instance, errors], properties: {type: {type: string}, title: {type: string}, status: {type: integer}, detail: {type: string}, instance: {type: string}, existing_customer: {$ref: '#/components/schemas/Customer'}, message: {$ref: '#/components/schemas/Message'}, errors: {type: array, items: {type: object, required: [field, pointer, code, reason], properties: {field: {type: string}, pointer: {type: string}, code: {type: string}, reason: {type: string}}}}}}

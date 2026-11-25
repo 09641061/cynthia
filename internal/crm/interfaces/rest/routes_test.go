@@ -16,7 +16,7 @@ import (
 func newTestRouter(store *fakeCustomerStore) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	rest.RegisterRoutes(r.Group("/v1"), application.NewCustomerService(store))
+	rest.RegisterRoutes(r.Group("/v1"), application.NewCustomerService(store), nil, nil, nil)
 	return r
 }
 
