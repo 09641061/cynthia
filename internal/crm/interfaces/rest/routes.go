@@ -11,6 +11,7 @@ type Handler struct {
 	conversations *application.ConversationService
 	messages      *application.MessageService
 	verifier      application.WebhookVerifier
+	events        application.EventSubscriber
 }
 
 // RegisterRoutes mounts the CRM HTTP resources on the supplied router.
@@ -20,12 +21,18 @@ func RegisterRoutes(
 	conversations *application.ConversationService,
 	messages *application.MessageService,
 	verifier application.WebhookVerifier,
+	events ...application.EventSubscriber,
 ) {
+	var subscriber application.EventSubscriber
+	if len(events) > 0 {
+		subscriber = events[0]
+	}
 	h := Handler{
 		customers:     customers,
 		conversations: conversations,
 		messages:      messages,
 		verifier:      verifier,
+		events:        subscriber,
 	}
 	router.GET("/customers", h.listCustomers)
 	router.POST("/customers", h.createCustomer)
@@ -42,5 +49,8 @@ func RegisterRoutes(
 		router.POST("/conversations/:id/messages", h.sendMessage)
 		router.GET("/crm/webhooks/whatsapp", h.verifyWhatsAppWebhook)
 		router.POST("/crm/webhooks/whatsapp", h.receiveWhatsAppWebhook)
+	}
+	if subscriber != nil {
+		router.GET("/crm/events", h.streamEvents)
 	}
 }

@@ -18,8 +18,11 @@ func NewModule(db *sharedpostgres.Client, router gin.IRouter, configReader appli
 		sqlDB = db.DB
 	}
 	store := postgres.NewStore(sqlDB)
+	broker := application.NewEventBroker()
 	customers := application.NewCustomerService(store)
 	conversations := application.NewConversationService(store, store)
+	conversations.SetEventPublisher(broker)
 	messages := application.NewMessageService(store, store, store, store, whatsapp.NewClient(), configReader)
-	rest.RegisterRoutes(router.Group("/v1"), customers, conversations, messages, whatsapp.NewVerifier())
+	messages.SetEventPublisher(broker)
+	rest.RegisterRoutes(router.Group("/v1"), customers, conversations, messages, whatsapp.NewVerifier(), broker)
 }

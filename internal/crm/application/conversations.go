@@ -17,11 +17,17 @@ const (
 type ConversationService struct {
 	conversations ConversationStore
 	messages      MessageStore
+	events        EventPublisher
 }
 
 // NewConversationService creates a ConversationService backed by the supplied stores.
 func NewConversationService(conversations ConversationStore, messages MessageStore) *ConversationService {
 	return &ConversationService{conversations: conversations, messages: messages}
+}
+
+// SetEventPublisher configures an optional publisher for real-time CRM events.
+func (s *ConversationService) SetEventPublisher(publisher EventPublisher) {
+	s.events = publisher
 }
 
 // List returns a paginated list of conversations matching the filter.
@@ -74,5 +80,12 @@ func (s *ConversationService) UpdateStatus(ctx context.Context, convID string, e
 	if err != nil {
 		return domain.Conversation{}, err
 	}
-	return s.conversations.UpdateConversationStatus(ctx, convID, expectedVersion, status)
+	conv, err := s.conversations.UpdateConversationStatus(ctx, convID, expectedVersion, status)
+	if err != nil {
+		return domain.Conversation{}, err
+	}
+	if s.events != nil {
+		s.events.Publish(Event{Type: EventConversationUpdated, ConversationID: conv.ID})
+	}
+	return conv, nil
 }

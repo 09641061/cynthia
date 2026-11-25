@@ -44,7 +44,7 @@ func (s *MessageService) ReceiveInbound(ctx context.Context, externalID, rawPhon
 	if err != nil {
 		return domain.Message{}, err
 	}
-	msg, _, err := s.messages.InsertInboundMessage(ctx, domain.Message{
+	msg, created, err := s.messages.InsertInboundMessage(ctx, domain.Message{
 		ID:             uuid.NewString(),
 		ConversationID: conv.ID,
 		ExternalID:     &extID,
@@ -52,5 +52,19 @@ func (s *MessageService) ReceiveInbound(ctx context.Context, externalID, rawPhon
 		Content:        content,
 		Status:         domain.MessageStatusReceived,
 	}, domain.MessagePreview(content))
+	if err == nil && created {
+		s.publishMessageCreated(msg.ConversationID)
+	}
 	return msg, err
+}
+
+// SetEventPublisher configures an optional publisher for real-time CRM events.
+func (s *MessageService) SetEventPublisher(publisher EventPublisher) {
+	s.events = publisher
+}
+
+func (s *MessageService) publishMessageCreated(conversationID string) {
+	if s.events != nil {
+		s.events.Publish(Event{Type: EventMessageCreated, ConversationID: conversationID})
+	}
 }

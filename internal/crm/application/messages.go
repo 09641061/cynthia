@@ -19,6 +19,7 @@ type MessageService struct {
 	messages      MessageStore
 	sender        WhatsAppSender
 	configReader  WhatsAppConfigReader
+	events        EventPublisher
 }
 
 // NewMessageService creates a MessageService with its required ports.
@@ -113,7 +114,11 @@ func (s *MessageService) deliverOutbound(ctx context.Context, pending domain.Mes
 	if extID != "" {
 		extPtr = &extID
 	}
-	return s.messages.UpdateMessageDelivery(ctx, pending.ID, domain.MessageStatusSent, extPtr, preview)
+	updated, err := s.messages.UpdateMessageDelivery(ctx, pending.ID, domain.MessageStatusSent, extPtr, preview)
+	if err == nil {
+		s.publishMessageCreated(updated.ConversationID)
+	}
+	return updated, err
 }
 
 func (s *MessageService) resolveWhatsAppConfig(ctx context.Context) (string, bool) {

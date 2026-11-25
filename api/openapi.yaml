@@ -190,6 +190,12 @@ paths:
       responses:
         '200': {description: Webhook processed}
         default: {$ref: '#/components/responses/Problem'}
+  /v1/crm/events:
+    get:
+      operationId: streamCRMEvents
+      responses:
+        '200': {description: Server-Sent Events stream of CRM updates, content: {text/event-stream: {schema: {type: string}}}}
+        default: {$ref: '#/components/responses/Problem'}
 components:
   parameters:
     ID: {name: id, in: path, required: true, schema: {type: string, format: uuid}}
