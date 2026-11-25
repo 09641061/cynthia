@@ -1,0 +1,11 @@
+.git
+.github
+.agents
+.env
+.env.*
+*.md
+*.log
+Makefile
+shell.nix
+test
+seeds
