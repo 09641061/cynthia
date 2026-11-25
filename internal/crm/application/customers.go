@@ -72,8 +72,8 @@ func (s *CustomerService) Create(ctx context.Context, name, phone string) (domai
 	return s.store.CreateCustomer(ctx, customer)
 }
 
-// Update validates and updates an existing customer with optimistic locking.
-func (s *CustomerService) Update(ctx context.Context, id string, expectedVersion int64, name, phone string) (domain.Customer, error) {
+// Update validates and updates an existing customer.
+func (s *CustomerService) Update(ctx context.Context, id, name, phone string) (domain.Customer, error) {
 	validName, err := domain.ValidateName(name)
 	if err != nil {
 		return domain.Customer{}, err
@@ -82,7 +82,7 @@ func (s *CustomerService) Update(ctx context.Context, id string, expectedVersion
 	if err != nil {
 		return domain.Customer{}, err
 	}
-	return s.store.UpdateCustomer(ctx, id, expectedVersion, validName, validPhone)
+	return s.store.UpdateCustomer(ctx, id, validName, validPhone)
 }
 
 // Delete removes a customer if it has no conversations.

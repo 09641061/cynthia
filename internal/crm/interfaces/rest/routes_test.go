@@ -41,8 +41,8 @@ func TestCustomerCRUDAndDuplicateConflict(t *testing.T) {
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("create status = %d, want 201: %s", rec.Code, rec.Body.String())
 	}
-	if rec.Header().Get("ETag") != `"v1"` || rec.Header().Get("Cache-Control") != "no-store" {
-		t.Fatalf("unexpected headers: ETag=%q Cache-Control=%q", rec.Header().Get("ETag"), rec.Header().Get("Cache-Control"))
+	if rec.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("unexpected Cache-Control=%q", rec.Header().Get("Cache-Control"))
 	}
 	var created struct {
 		ID    string `json:"id"`
@@ -74,21 +74,13 @@ func TestCustomerCRUDAndDuplicateConflict(t *testing.T) {
 	}
 
 	get := doJSON(r, http.MethodGet, "/v1/customers/"+created.ID, "", "")
-	if get.Code != http.StatusOK || get.Header().Get("ETag") != `"v1"` {
-		t.Fatalf("get status=%d etag=%q", get.Code, get.Header().Get("ETag"))
+	if get.Code != http.StatusOK {
+		t.Fatalf("get status=%d", get.Code)
 	}
 
-	noMatch := doJSON(r, http.MethodPatch, "/v1/customers/"+created.ID, `{"name":"Ana B","phone":"+573001234567"}`, "")
-	if noMatch.Code != http.StatusPreconditionRequired {
-		t.Fatalf("patch without If-Match = %d, want 428", noMatch.Code)
-	}
-	stale := doJSON(r, http.MethodPatch, "/v1/customers/"+created.ID, `{"name":"Ana B","phone":"+573001234567"}`, `"v2"`)
-	if stale.Code != http.StatusPreconditionFailed {
-		t.Fatalf("patch stale = %d, want 412", stale.Code)
-	}
-	patched := doJSON(r, http.MethodPatch, "/v1/customers/"+created.ID, `{"name":"Ana B","phone":"+573001234567"}`, `"v1"`)
-	if patched.Code != http.StatusOK || patched.Header().Get("ETag") != `"v2"` {
-		t.Fatalf("patch status=%d etag=%q", patched.Code, patched.Header().Get("ETag"))
+	patched := doJSON(r, http.MethodPatch, "/v1/customers/"+created.ID, `{"name":"Ana B","phone":"+573001234567"}`, "")
+	if patched.Code != http.StatusOK {
+		t.Fatalf("patch status=%d", patched.Code)
 	}
 
 	store.blockedDel[created.ID] = true

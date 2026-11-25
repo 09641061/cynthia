@@ -10,11 +10,8 @@ import (
 	"go-service/internal/catalog/domain"
 )
 
-func (s *Store) MoveService(ctx context.Context, id, categoryID string, position int, version int64) (moved domain.Service, err error) {
+func (s *Store) MoveService(ctx context.Context, id, categoryID string, position int) (moved domain.Service, err error) {
 	err = s.write(ctx, func(tx *sql.Tx) error {
-		if err := checkServiceVersion(ctx, tx, id, version); err != nil {
-			return err
-		}
 		var sourceID string
 		if err := tx.QueryRowContext(ctx, `SELECT category_id FROM catalog_services WHERE id = $1`, id).Scan(&sourceID); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
@@ -55,9 +52,9 @@ func (s *Store) MoveService(ctx context.Context, id, categoryID string, position
 			}
 		}
 		return tx.QueryRowContext(ctx, `SELECT id, category_id, name, duration_minutes,
-			price_minor_units, sort_order, version, created_at, updated_at FROM catalog_services
+			price_minor_units, sort_order, created_at, updated_at FROM catalog_services
 			WHERE id = $1`, id).Scan(&moved.ID, &moved.CategoryID, &moved.Name,
-			&moved.DurationMinute, &moved.PriceMinor, &moved.SortOrder, &moved.Version,
+			&moved.DurationMinute, &moved.PriceMinor, &moved.SortOrder,
 			&moved.CreatedAt, &moved.UpdatedAt)
 	})
 	return moved, persistenceError(err)

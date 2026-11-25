@@ -108,8 +108,8 @@ func (s *Service) Create(ctx context.Context, in CreateAppointmentInput) (Appoin
 	return buildView(created, person, customer, svc), nil
 }
 
-// Update validates references and transitions, then persists the appointment with optimistic locking.
-func (s *Service) Update(ctx context.Context, id string, expectedVersion int64, in UpdateAppointmentInput) (AppointmentView, error) {
+// Update validates references and transitions, then persists the appointment.
+func (s *Service) Update(ctx context.Context, id string, in UpdateAppointmentInput) (AppointmentView, error) {
 	current, err := s.appointments.GetAppointment(ctx, id)
 	if err != nil {
 		return AppointmentView{}, err
@@ -127,7 +127,7 @@ func (s *Service) Update(ctx context.Context, id string, expectedVersion int64, 
 			return AppointmentView{}, err
 		}
 	}
-	saved, err := s.appointments.UpdateAppointment(ctx, expectedVersion, updated)
+	saved, err := s.appointments.UpdateAppointment(ctx, updated)
 	if err != nil {
 		return AppointmentView{}, err
 	}
@@ -138,7 +138,7 @@ func (s *Service) Update(ctx context.Context, id string, expectedVersion int64, 
 	return views[0], nil
 }
 
-// Delete removes an appointment by ID with optimistic locking.
-func (s *Service) Delete(ctx context.Context, id string, expectedVersion int64) error {
-	return s.appointments.DeleteAppointment(ctx, id, expectedVersion)
+// Delete removes an appointment by ID.
+func (s *Service) Delete(ctx context.Context, id string) error {
+	return s.appointments.DeleteAppointment(ctx, id)
 }

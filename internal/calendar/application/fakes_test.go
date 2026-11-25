@@ -52,30 +52,21 @@ func (f *fakeAppointmentStore) CreateAppointment(_ context.Context, appt domain.
 	return appt, nil
 }
 
-func (f *fakeAppointmentStore) UpdateAppointment(_ context.Context, expectedVersion int64, appt domain.Appointment) (domain.Appointment, error) {
+func (f *fakeAppointmentStore) UpdateAppointment(_ context.Context, appt domain.Appointment) (domain.Appointment, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	cur, ok := f.items[appt.ID]
-	if !ok {
+	if _, ok := f.items[appt.ID]; !ok {
 		return domain.Appointment{}, domain.ErrNotFound
 	}
-	if cur.Version != expectedVersion {
-		return domain.Appointment{}, domain.ErrVersionConflict
-	}
-	appt.Version = cur.Version + 1
 	f.items[appt.ID] = appt
 	return appt, nil
 }
 
-func (f *fakeAppointmentStore) DeleteAppointment(_ context.Context, id string, expectedVersion int64) error {
+func (f *fakeAppointmentStore) DeleteAppointment(_ context.Context, id string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	cur, ok := f.items[id]
-	if !ok {
+	if _, ok := f.items[id]; !ok {
 		return domain.ErrNotFound
-	}
-	if cur.Version != expectedVersion {
-		return domain.ErrVersionConflict
 	}
 	delete(f.items, id)
 	return nil

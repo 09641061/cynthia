@@ -8,10 +8,9 @@ import (
 
 // Application sentinel errors mapped to HTTP status codes.
 var (
-	ErrNotFound           = errors.New("crm resource not found")
-	ErrConflict           = errors.New("crm state conflict")
-	ErrPreconditionFailed = errors.New("crm precondition failed")
-	ErrBadGateway         = errors.New("upstream whatsapp delivery failed")
+	ErrNotFound   = errors.New("crm resource not found")
+	ErrConflict   = errors.New("crm state conflict")
+	ErrBadGateway = errors.New("upstream whatsapp delivery failed")
 )
 
 // DuplicatePhoneError indicates a customer with the same normalized phone already exists.

@@ -32,8 +32,6 @@ func writeError(c *gin.Context, err error) {
 		sharedrest.WriteProblem(c, http.StatusNotFound, "Not Found", "The referenced service does not exist.")
 	case errors.Is(err, domain.ErrTimeConflict):
 		sharedrest.WriteProblem(c, http.StatusConflict, "Conflict", "The requested time slot conflicts with an existing appointment.")
-	case errors.Is(err, domain.ErrVersionConflict):
-		sharedrest.WriteProblem(c, http.StatusPreconditionFailed, "Precondition Failed", "The appointment has changed since it was last read.")
 	case errors.Is(err, domain.ErrInvalid):
 		sharedrest.WriteProblem(c, http.StatusUnprocessableEntity, "Unprocessable Content", "The appointment data is invalid.")
 	default:

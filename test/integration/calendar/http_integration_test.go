@@ -12,8 +12,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go-service/internal/calendar"
+	calendaracl "go-service/internal/calendar/infrastructure/acl"
 	"go-service/internal/catalog"
 	"go-service/internal/crm"
+	"go-service/internal/iam"
 	"go-service/internal/organizations"
 	"go-service/internal/shared/circuitbreaker"
 	sharedpostgres "go-service/internal/shared/postgres"
@@ -41,7 +43,8 @@ func TestCalendarHTTPPostgreSQLLifecycle(t *testing.T) {
 	client := sharedpostgres.NewClient(db, breaker)
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	calendar.NewModule(client, router, nil,
+	calendar.NewModule(client, router,
+		calendaracl.NewPersonAdapter(iam.NewPersonReader(client)),
 		crm.NewCustomerReader(client),
 		catalog.NewServiceReader(client),
 		organizations.NewScheduleReader(client),
@@ -54,7 +57,7 @@ func TestCalendarHTTPPostgreSQLLifecycle(t *testing.T) {
 
 	body := `{"person_id":"` + refs.personA + `","customer_id":"` + refs.customerID + `","service_id":"` + refs.serviceID + `","starts_at":"2026-11-25T10:00:00Z","channel":"whatsapp"}`
 	createRec := doHTTP(router, http.MethodPost, "/v1/appointments", body, nil)
-	if createRec.Code != http.StatusCreated || createRec.Header().Get("ETag") != `"v1"` {
+	if createRec.Code != http.StatusCreated {
 		t.Fatalf("POST /v1/appointments = %d; body=%s", createRec.Code, createRec.Body.String())
 	}
 	var created struct {
@@ -62,29 +65,17 @@ func TestCalendarHTTPPostgreSQLLifecycle(t *testing.T) {
 	}
 	_ = json.Unmarshal(createRec.Body.Bytes(), &created)
 
-	if rec := doHTTP(router, http.MethodPatch, "/v1/appointments/"+created.ID, `{"status":"confirmed"}`, nil); rec.Code != http.StatusPreconditionRequired {
-		t.Fatalf("PATCH without If-Match = %d, want 428", rec.Code)
+	okPatch := doHTTP(router, http.MethodPatch, "/v1/appointments/"+created.ID, `{"status":"confirmed"}`, nil)
+	if okPatch.Code != http.StatusOK {
+		t.Fatalf("PATCH confirm = %d, body=%s", okPatch.Code, okPatch.Body.String())
 	}
-	if rec := doHTTP(router, http.MethodPatch, "/v1/appointments/"+created.ID, `{"status":"confirmed"}`, map[string]string{"If-Match": `"v9"`}); rec.Code != http.StatusPreconditionFailed {
-		t.Fatalf("PATCH with stale If-Match = %d, want 412", rec.Code)
-	}
-	okPatch := doHTTP(router, http.MethodPatch, "/v1/appointments/"+created.ID, `{"status":"confirmed"}`, map[string]string{"If-Match": `"v1"`})
-	if okPatch.Code != http.StatusOK || okPatch.Header().Get("ETag") != `"v2"` {
-		t.Fatalf("PATCH confirm = %d, ETag=%q", okPatch.Code, okPatch.Header().Get("ETag"))
-	}
-	if rec := doHTTP(router, http.MethodPatch, "/v1/appointments/"+created.ID, `{"status":"pending"}`, map[string]string{"If-Match": `"v2"`}); rec.Code != http.StatusUnprocessableEntity {
+	if rec := doHTTP(router, http.MethodPatch, "/v1/appointments/"+created.ID, `{"status":"pending"}`, nil); rec.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("invalid transition = %d, want 422", rec.Code)
 	}
-	if rec := doHTTP(router, http.MethodDelete, "/v1/appointments/"+created.ID, "", nil); rec.Code != http.StatusPreconditionRequired {
-		t.Fatalf("DELETE without If-Match = %d, want 428", rec.Code)
-	}
-	if rec := doHTTP(router, http.MethodDelete, "/v1/appointments/"+created.ID, "", map[string]string{"If-Match": `"v1"`}); rec.Code != http.StatusPreconditionFailed {
-		t.Fatalf("DELETE with stale If-Match = %d, want 412", rec.Code)
-	}
-	if rec := doHTTP(router, http.MethodDelete, "/v1/appointments/"+created.ID, "", map[string]string{"If-Match": `"v2"`}); rec.Code != http.StatusNoContent {
+	if rec := doHTTP(router, http.MethodDelete, "/v1/appointments/"+created.ID, "", nil); rec.Code != http.StatusNoContent {
 		t.Fatalf("DELETE = %d, want 204", rec.Code)
 	}
-	if rec := doHTTP(router, http.MethodDelete, "/v1/appointments/"+created.ID, "", map[string]string{"If-Match": `"v2"`}); rec.Code != http.StatusNotFound {
+	if rec := doHTTP(router, http.MethodDelete, "/v1/appointments/"+created.ID, "", nil); rec.Code != http.StatusNotFound {
 		t.Fatalf("DELETE missing = %d, want 404", rec.Code)
 	}
 

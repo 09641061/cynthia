@@ -74,13 +74,13 @@ func (s *ConversationService) ListMessages(ctx context.Context, convID string, l
 	return s.messages.ListMessages(ctx, convID, limit, before)
 }
 
-// UpdateStatus transitions a conversation between open and closed with optimistic locking.
-func (s *ConversationService) UpdateStatus(ctx context.Context, convID string, expectedVersion int64, rawStatus string) (domain.Conversation, error) {
+// UpdateStatus transitions a conversation between open and closed.
+func (s *ConversationService) UpdateStatus(ctx context.Context, convID, rawStatus string) (domain.Conversation, error) {
 	status, err := domain.ValidateConversationStatus(rawStatus)
 	if err != nil {
 		return domain.Conversation{}, err
 	}
-	conv, err := s.conversations.UpdateConversationStatus(ctx, convID, expectedVersion, status)
+	conv, err := s.conversations.UpdateConversationStatus(ctx, convID, status)
 	if err != nil {
 		return domain.Conversation{}, err
 	}

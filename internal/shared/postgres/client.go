@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
@@ -15,6 +16,10 @@ func Open(ctx context.Context, connectionString string) (*sql.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open PostgreSQL connection: %w", err)
 	}
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(30 * time.Minute)
+	db.SetConnMaxIdleTime(5 * time.Minute)
 	if err := db.PingContext(ctx); err != nil {
 		return nil, errors.Join(fmt.Errorf("connect to PostgreSQL: %w", err), db.Close())
 	}

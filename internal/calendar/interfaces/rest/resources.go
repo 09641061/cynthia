@@ -28,7 +28,6 @@ type appointmentResource struct {
 	Status                 string    `json:"status"`
 	Channel                string    `json:"channel"`
 	Notes                  string    `json:"notes"`
-	Version                int64     `json:"version"`
 	CreatedAt              time.Time `json:"created_at"`
 	UpdatedAt              time.Time `json:"updated_at"`
 }
@@ -79,7 +78,6 @@ func toAppointmentResource(v application.AppointmentView) appointmentResource {
 		Status:                 string(a.Status),
 		Channel:                string(a.Channel),
 		Notes:                  a.Notes,
-		Version:                a.Version,
 		CreatedAt:              a.CreatedAt,
 		UpdatedAt:              a.UpdatedAt,
 	}

@@ -8,8 +8,11 @@ import (
 	"time"
 
 	"go-service/internal/bootstrap/config"
+	"go-service/internal/crm"
+	"go-service/internal/iam"
 	"go-service/internal/shared/circuitbreaker"
 	"go-service/internal/shared/postgres"
+	sharedredis "go-service/internal/shared/redis"
 )
 
 // Run loads configuration, initializes dependencies and serves requests until cancellation.
@@ -32,11 +35,36 @@ func Run(ctx context.Context) (resultErr error) {
 	if err := postgres.Migrate(startupCtx, db, cfg.MigrationsDir); err != nil {
 		return fmt.Errorf("migrate database: %w", err)
 	}
+	redisClient, err := sharedredis.Open(startupCtx, cfg.RedisURL)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := redisClient.Close(); err != nil {
+			resultErr = errors.Join(resultErr, fmt.Errorf("close Redis connection: %w", err))
+		}
+	}()
 	breaker, err := circuitbreaker.New(5, 30*time.Second)
 	if err != nil {
 		return fmt.Errorf("configure PostgreSQL circuit breaker: %w", err)
 	}
-	router := newRouter(postgres.NewClient(db, breaker))
+	router, err := newRouter(postgres.NewClient(db, breaker), redisClient, iam.ModuleConfig{
+		ResendAPIKey: cfg.ResendAPIKey,
+		ResendFrom:   cfg.ResendFrom,
+		AppURL:       cfg.AppURL,
+		SessionTTL:   cfg.SessionTTL,
+		RefreshTTL:   cfg.RefreshTTL,
+		InviteTTL:    cfg.InviteTTL,
+	}, crm.WhatsAppConfig{
+		AccessToken:     cfg.WhatsAppAccessToken,
+		PhoneNumberID:   cfg.WhatsAppPhoneNumberID,
+		GraphAPIVersion: cfg.WhatsAppGraphAPIVersion,
+		VerifyToken:     cfg.WhatsAppVerifyToken,
+		AppSecret:       cfg.WhatsAppAppSecret,
+	})
+	if err != nil {
+		return fmt.Errorf("configure HTTP router: %w", err)
+	}
 	server := &http.Server{Addr: ":" + cfg.Port, Handler: router, ReadHeaderTimeout: cfg.ReadHeaderTimeout}
 	return serve(ctx, server, cfg.ShutdownTimeout)
 }

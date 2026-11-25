@@ -20,15 +20,12 @@ type ServiceSummary struct {
 
 // ServiceReader reads catalog service summaries for cross-context queries.
 type ServiceReader struct {
-	db *sql.DB
+	db *sharedpostgres.Client
 }
 
 // NewServiceReader creates a reader for catalog service records.
 func NewServiceReader(db *sharedpostgres.Client) *ServiceReader {
-	if db == nil {
-		return &ServiceReader{}
-	}
-	return &ServiceReader{db: db.DB}
+	return &ServiceReader{db: db}
 }
 
 // GetService fetches a single service summary by ID.
@@ -37,9 +34,11 @@ func (r *ServiceReader) GetService(ctx context.Context, id string) (ServiceSumma
 		return ServiceSummary{}, ErrServiceNotFound
 	}
 	var s ServiceSummary
-	err := r.db.QueryRowContext(ctx,
-		`SELECT id, name, duration_minutes FROM catalog_services WHERE id = $1`, id,
-	).Scan(&s.ID, &s.Name, &s.DurationMinutes)
+	err := r.db.Do(ctx, func() error {
+		return r.db.QueryRowContext(ctx,
+			`SELECT id, name, duration_minutes FROM catalog_services WHERE id = $1`, id,
+		).Scan(&s.ID, &s.Name, &s.DurationMinutes)
+	})
 	if errors.Is(err, sql.ErrNoRows) {
 		return ServiceSummary{}, ErrServiceNotFound
 	}
@@ -52,19 +51,22 @@ func (r *ServiceReader) GetServicesByIDs(ctx context.Context, ids []string) (map
 	if r.db == nil || len(ids) == 0 {
 		return result, nil
 	}
-	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, name, duration_minutes FROM catalog_services WHERE id = ANY($1::uuid[])`, ids,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var s ServiceSummary
-		if err := rows.Scan(&s.ID, &s.Name, &s.DurationMinutes); err != nil {
-			return nil, err
+	err := r.db.Do(ctx, func() error {
+		rows, err := r.db.QueryContext(ctx,
+			`SELECT id, name, duration_minutes FROM catalog_services WHERE id = ANY($1::uuid[])`, ids,
+		)
+		if err != nil {
+			return err
 		}
-		result[s.ID] = s
-	}
-	return result, rows.Err()
+		defer rows.Close()
+		for rows.Next() {
+			var s ServiceSummary
+			if err := rows.Scan(&s.ID, &s.Name, &s.DurationMinutes); err != nil {
+				return err
+			}
+			result[s.ID] = s
+		}
+		return rows.Err()
+	})
+	return result, err
 }

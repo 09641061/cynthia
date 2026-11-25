@@ -13,25 +13,23 @@ paths:
       operationId: createCategory
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CategoryInput'}}}}
       responses:
-        '201': {description: Category created, headers: {Location: {schema: {type: string}}, ETag: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Category'}}}}
+        '201': {description: Category created, headers: {Location: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Category'}}}}
         default: {$ref: '#/components/responses/Problem'}
   /v1/catalog/categories/{id}:
     parameters: [{$ref: '#/components/parameters/ID'}]
     get:
       operationId: getCategory
       responses:
-        '200': {description: Category and its services, headers: {ETag: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Category'}}}}
+        '200': {description: Category and its services, content: {application/json: {schema: {$ref: '#/components/schemas/Category'}}}}
         default: {$ref: '#/components/responses/Problem'}
     put:
       operationId: updateCategory
-      parameters: [{$ref: '#/components/parameters/IfMatch'}]
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CategoryInput'}}}}
       responses:
-        '200': {description: Category updated, headers: {ETag: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Category'}}}}
+        '200': {description: Category updated, content: {application/json: {schema: {$ref: '#/components/schemas/Category'}}}}
         default: {$ref: '#/components/responses/Problem'}
     delete:
       operationId: deleteCategory
-      parameters: [{$ref: '#/components/parameters/IfMatch'}]
       responses:
         '204': {description: Category and its services deleted}
         default: {$ref: '#/components/responses/Problem'}
@@ -39,10 +37,9 @@ paths:
     parameters: [{$ref: '#/components/parameters/ID'}]
     put:
       operationId: moveCategory
-      parameters: [{$ref: '#/components/parameters/IfMatch'}]
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CategoryPlacementInput'}}}}
       responses:
-        '200': {description: Category moved, headers: {ETag: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Category'}}}}
+        '200': {description: Category moved, content: {application/json: {schema: {$ref: '#/components/schemas/Category'}}}}
         default: {$ref: '#/components/responses/Problem'}
   /v1/catalog/categories/{id}/services:
     parameters: [{$ref: '#/components/parameters/ID'}]
@@ -50,25 +47,23 @@ paths:
       operationId: createService
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ServiceCreateInput'}}}}
       responses:
-        '201': {description: Service created, headers: {Location: {schema: {type: string}}, ETag: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Service'}}}}
+        '201': {description: Service created, headers: {Location: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Service'}}}}
         default: {$ref: '#/components/responses/Problem'}
   /v1/catalog/services/{id}:
     parameters: [{$ref: '#/components/parameters/ID'}]
     get:
       operationId: getService
       responses:
-        '200': {description: Service, headers: {ETag: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Service'}}}}
+        '200': {description: Service, content: {application/json: {schema: {$ref: '#/components/schemas/Service'}}}}
         default: {$ref: '#/components/responses/Problem'}
     put:
       operationId: updateService
-      parameters: [{$ref: '#/components/parameters/IfMatch'}]
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ServiceInput'}}}}
       responses:
-        '200': {description: Service updated, headers: {ETag: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Service'}}}}
+        '200': {description: Service updated, content: {application/json: {schema: {$ref: '#/components/schemas/Service'}}}}
         default: {$ref: '#/components/responses/Problem'}
     delete:
       operationId: deleteService
-      parameters: [{$ref: '#/components/parameters/IfMatch'}]
       responses:
         '204': {description: Service deleted and positions compacted}
         default: {$ref: '#/components/responses/Problem'}
@@ -76,10 +71,9 @@ paths:
     parameters: [{$ref: '#/components/parameters/ID'}]
     put:
       operationId: moveService
-      parameters: [{$ref: '#/components/parameters/IfMatch'}]
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/PlacementInput'}}}}
       responses:
-        '200': {description: Service moved, headers: {ETag: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Service'}}}}
+        '200': {description: Service moved, content: {application/json: {schema: {$ref: '#/components/schemas/Service'}}}}
         default: {$ref: '#/components/responses/Problem'}
   /v1/customers:
     get:
@@ -95,7 +89,7 @@ paths:
       operationId: createCustomer
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CustomerInput'}}}}
       responses:
-        '201': {description: Customer created, headers: {Location: {schema: {type: string}}, ETag: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Customer'}}}}
+        '201': {description: Customer created, headers: {Location: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Customer'}}}}
         '409': {$ref: '#/components/responses/Problem'}
         default: {$ref: '#/components/responses/Problem'}
   /v1/customers/{id}:
@@ -103,14 +97,13 @@ paths:
     get:
       operationId: getCustomer
       responses:
-        '200': {description: Customer, headers: {ETag: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Customer'}}}}
+        '200': {description: Customer, content: {application/json: {schema: {$ref: '#/components/schemas/Customer'}}}}
         default: {$ref: '#/components/responses/Problem'}
     patch:
       operationId: updateCustomer
-      parameters: [{$ref: '#/components/parameters/IfMatch'}]
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CustomerInput'}}}}
       responses:
-        '200': {description: Customer updated, headers: {ETag: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Customer'}}}}
+        '200': {description: Customer updated, content: {application/json: {schema: {$ref: '#/components/schemas/Customer'}}}}
         default: {$ref: '#/components/responses/Problem'}
     delete:
       operationId: deleteCustomer
@@ -122,14 +115,13 @@ paths:
     get:
       operationId: getOrganization
       responses:
-        '200': {description: Organization profile, headers: {ETag: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Organization'}}}}
+        '200': {description: Organization profile, content: {application/json: {schema: {$ref: '#/components/schemas/Organization'}}}}
         default: {$ref: '#/components/responses/Problem'}
     patch:
       operationId: patchOrganization
-      parameters: [{$ref: '#/components/parameters/IfMatch'}]
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/OrganizationPatchInput'}}}}
       responses:
-        '200': {description: Organization profile updated, headers: {ETag: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Organization'}}}}
+        '200': {description: Organization profile updated, content: {application/json: {schema: {$ref: '#/components/schemas/Organization'}}}}
         default: {$ref: '#/components/responses/Problem'}
   /v1/conversations:
     get:
@@ -167,10 +159,9 @@ paths:
       operationId: updateConversationStatus
       parameters:
         - {$ref: '#/components/parameters/ID'}
-        - {$ref: '#/components/parameters/IfMatch'}
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ConversationStatusInput'}}}}
       responses:
-        '200': {description: Conversation status updated, headers: {ETag: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Conversation'}}}}
+        '200': {description: Conversation status updated, content: {application/json: {schema: {$ref: '#/components/schemas/Conversation'}}}}
         default: {$ref: '#/components/responses/Problem'}
   /v1/crm/webhooks/whatsapp:
     get:
@@ -218,34 +209,29 @@ paths:
       operationId: createAppointment
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AppointmentCreateInput'}}}}
       responses:
-        '201': {description: Appointment created, headers: {Location: {schema: {type: string}}, ETag: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Appointment'}}}}
+        '201': {description: Appointment created, headers: {Location: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Appointment'}}}}
         default: {$ref: '#/components/responses/Problem'}
   /v1/appointments/{id}:
     parameters: [{$ref: '#/components/parameters/ID'}]
     get:
       operationId: getAppointment
       responses:
-        '200': {description: Appointment, headers: {ETag: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Appointment'}}}}
+        '200': {description: Appointment, content: {application/json: {schema: {$ref: '#/components/schemas/Appointment'}}}}
         default: {$ref: '#/components/responses/Problem'}
     patch:
       operationId: updateAppointment
-      parameters: [{$ref: '#/components/parameters/IfMatch'}]
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AppointmentPatchInput'}}}}
       responses:
-        '200': {description: Appointment updated, headers: {ETag: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Appointment'}}}}
+        '200': {description: Appointment updated, content: {application/json: {schema: {$ref: '#/components/schemas/Appointment'}}}}
         default: {$ref: '#/components/responses/Problem'}
     delete:
       operationId: deleteAppointment
-      parameters: [{$ref: '#/components/parameters/IfMatch'}]
       responses:
         '204': {description: Appointment deleted}
-        '412': {$ref: '#/components/responses/Problem'}
-        '428': {$ref: '#/components/responses/Problem'}
         default: {$ref: '#/components/responses/Problem'}
 components:
   parameters:
     ID: {name: id, in: path, required: true, schema: {type: string, format: uuid}}
-    IfMatch: {name: If-Match, in: header, required: true, description: Strong version ETag from a GET response, schema: {type: string, pattern: '^"v[1-9][0-9]*"$'}}
   responses:
     Problem: {description: RFC 9457 Problem Details response, content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}
   schemas:
@@ -254,16 +240,16 @@ components:
     ServiceInput: {type: object, additionalProperties: false, required: [name, duration_minutes], properties: {name: {type: string, minLength: 1, maxLength: 120}, duration_minutes: {type: integer, minimum: 1, maximum: 1440}, price_minor_units: {type: integer, format: int64, minimum: 0}}}
     ServiceCreateInput: {type: object, additionalProperties: false, required: [name, duration_minutes], properties: {name: {type: string, minLength: 1, maxLength: 120}, duration_minutes: {type: integer, minimum: 1, maximum: 1440}, price_minor_units: {type: integer, format: int64, minimum: 0}, sort_order: {type: integer, minimum: 1, description: Omit to append}}}
     PlacementInput: {type: object, additionalProperties: false, required: [category_id, sort_order], properties: {category_id: {type: string, format: uuid}, sort_order: {type: integer, minimum: 1}}}
-    Category: {type: object, required: [id, name, sort_order, version, created_at, updated_at, services], properties: {id: {type: string, format: uuid}, name: {type: string}, sort_order: {type: integer, minimum: 1}, version: {type: integer, minimum: 1}, created_at: {type: string, format: date-time}, updated_at: {type: string, format: date-time}, services: {type: array, items: {$ref: '#/components/schemas/Service'}}}}
-    Service: {type: object, required: [id, category_id, name, duration_minutes, price_minor_units, sort_order, version, created_at, updated_at], properties: {id: {type: string, format: uuid}, category_id: {type: string, format: uuid}, name: {type: string}, duration_minutes: {type: integer}, price_minor_units: {type: integer, format: int64}, sort_order: {type: integer}, version: {type: integer}, created_at: {type: string, format: date-time}, updated_at: {type: string, format: date-time}}}
+    Category: {type: object, required: [id, name, sort_order, created_at, updated_at, services], properties: {id: {type: string, format: uuid}, name: {type: string}, sort_order: {type: integer, minimum: 1}, created_at: {type: string, format: date-time}, updated_at: {type: string, format: date-time}, services: {type: array, items: {$ref: '#/components/schemas/Service'}}}}
+    Service: {type: object, required: [id, category_id, name, duration_minutes, price_minor_units, sort_order, created_at, updated_at], properties: {id: {type: string, format: uuid}, category_id: {type: string, format: uuid}, name: {type: string}, duration_minutes: {type: integer}, price_minor_units: {type: integer, format: int64}, sort_order: {type: integer}, created_at: {type: string, format: date-time}, updated_at: {type: string, format: date-time}}}
     CustomerInput: {type: object, additionalProperties: false, required: [name, phone], properties: {name: {type: string, minLength: 1}, phone: {type: string, pattern: '^\+[1-9][0-9]{6,14}$'}}}
-    Customer: {type: object, required: [id, name, phone, version, created_at, updated_at], properties: {id: {type: string, format: uuid}, name: {type: string}, phone: {type: string}, version: {type: integer, minimum: 1}, created_at: {type: string, format: date-time}, updated_at: {type: string, format: date-time}}}
+    Customer: {type: object, required: [id, name, phone, created_at, updated_at], properties: {id: {type: string, format: uuid}, name: {type: string}, phone: {type: string}, created_at: {type: string, format: date-time}, updated_at: {type: string, format: date-time}}}
     CustomerPage: {type: object, required: [items, total, page, page_size], properties: {items: {type: array, items: {$ref: '#/components/schemas/Customer'}}, total: {type: integer, minimum: 0}, page: {type: integer, minimum: 1}, page_size: {type: integer, minimum: 1}}}
     DayHours: {type: object, additionalProperties: false, required: [is_open, open_time, close_time], properties: {is_open: {type: boolean}, open_time: {type: string, pattern: '^[0-2][0-9]:[0-5][0-9]$'}, close_time: {type: string, pattern: '^[0-2][0-9]:[0-5][0-9]$'}}}
     BusinessHours: {type: object, additionalProperties: false, required: [monday, tuesday, wednesday, thursday, friday, saturday, sunday], properties: {monday: {$ref: '#/components/schemas/DayHours'}, tuesday: {$ref: '#/components/schemas/DayHours'}, wednesday: {$ref: '#/components/schemas/DayHours'}, thursday: {$ref: '#/components/schemas/DayHours'}, friday: {$ref: '#/components/schemas/DayHours'}, saturday: {$ref: '#/components/schemas/DayHours'}, sunday: {$ref: '#/components/schemas/DayHours'}}}
     OrganizationPatchInput: {type: object, additionalProperties: false, properties: {name: {type: string, minLength: 1, maxLength: 120}, business_type: {type: string, maxLength: 120}, contact_email: {type: string, maxLength: 254}, timezone: {type: string, minLength: 1, maxLength: 120}, currency_code: {type: string, pattern: '^[A-Z]{3}$'}, business_hours: {$ref: '#/components/schemas/BusinessHours'}, ai_instructions: {type: string, maxLength: 4000}, whatsapp_phone_number: {type: string, maxLength: 16}, whatsapp_phone_number_id: {type: string, maxLength: 64}, whatsapp_enabled: {type: boolean}}}
-    Organization: {type: object, required: [id, name, business_type, contact_email, timezone, currency_code, business_hours, ai_instructions, whatsapp_phone_number, whatsapp_phone_number_id, whatsapp_enabled, version, created_at, updated_at], properties: {id: {type: string, format: uuid}, name: {type: string}, business_type: {type: string}, contact_email: {type: string}, timezone: {type: string}, currency_code: {type: string, pattern: '^[A-Z]{3}$'}, business_hours: {$ref: '#/components/schemas/BusinessHours'}, ai_instructions: {type: string}, whatsapp_phone_number: {type: string}, whatsapp_phone_number_id: {type: string}, whatsapp_enabled: {type: boolean}, version: {type: integer, minimum: 1}, created_at: {type: string, format: date-time}, updated_at: {type: string, format: date-time}}}
-    Conversation: {type: object, required: [id, customer_id, channel, status, version, created_at, updated_at], properties: {id: {type: string, format: uuid}, customer_id: {type: string, format: uuid}, channel: {type: string}, status: {type: string, enum: [open, closed]}, version: {type: integer, minimum: 1}, last_message_at: {type: string, format: date-time}, last_message_preview: {type: string}, created_at: {type: string, format: date-time}, updated_at: {type: string, format: date-time}}}
+    Organization: {type: object, required: [id, name, business_type, contact_email, timezone, currency_code, business_hours, ai_instructions, whatsapp_phone_number, whatsapp_phone_number_id, whatsapp_enabled, created_at, updated_at], properties: {id: {type: string, format: uuid}, name: {type: string}, business_type: {type: string}, contact_email: {type: string}, timezone: {type: string}, currency_code: {type: string, pattern: '^[A-Z]{3}$'}, business_hours: {$ref: '#/components/schemas/BusinessHours'}, ai_instructions: {type: string}, whatsapp_phone_number: {type: string}, whatsapp_phone_number_id: {type: string}, whatsapp_enabled: {type: boolean}, created_at: {type: string, format: date-time}, updated_at: {type: string, format: date-time}}}
+    Conversation: {type: object, required: [id, customer_id, channel, status, created_at, updated_at], properties: {id: {type: string, format: uuid}, customer_id: {type: string, format: uuid}, channel: {type: string}, status: {type: string, enum: [open, closed]}, last_message_at: {type: string, format: date-time}, last_message_preview: {type: string}, created_at: {type: string, format: date-time}, updated_at: {type: string, format: date-time}}}
     ConversationPage: {type: object, required: [items, total, page, page_size], properties: {items: {type: array, items: {$ref: '#/components/schemas/Conversation'}}, total: {type: integer, minimum: 0}, page: {type: integer, minimum: 1}, page_size: {type: integer, minimum: 1}}}
     Message: {type: object, required: [id, conversation_id, direction, content, status, created_at], properties: {id: {type: string, format: uuid}, conversation_id: {type: string, format: uuid}, external_id: {type: string}, idempotency_key: {type: string}, direction: {type: string, enum: [inbound, outbound]}, content: {type: string}, status: {type: string, enum: [received, pending, sent, delivered, failed, uncertain]}, created_at: {type: string, format: date-time}}}
     MessageList: {type: object, required: [items], properties: {items: {type: array, items: {$ref: '#/components/schemas/Message'}}}}
@@ -272,5 +258,5 @@ components:
     CalendarPerson: {type: object, required: [id, name, active], properties: {id: {type: string, format: uuid}, name: {type: string}, active: {type: boolean}}}
     AppointmentCreateInput: {type: object, additionalProperties: false, required: [person_id, customer_id, service_id, starts_at], properties: {person_id: {type: string, format: uuid}, customer_id: {type: string, format: uuid}, service_id: {type: string, format: uuid}, starts_at: {type: string, format: date-time}, ends_at: {type: string, format: date-time}, status: {type: string, enum: [pending, confirmed]}, channel: {type: string, enum: [manual, whatsapp]}, notes: {type: string, maxLength: 1000}}}
     AppointmentPatchInput: {type: object, additionalProperties: false, properties: {person_id: {type: string, format: uuid}, customer_id: {type: string, format: uuid}, service_id: {type: string, format: uuid}, starts_at: {type: string, format: date-time}, ends_at: {type: string, format: date-time}, status: {type: string, enum: [pending, confirmed, completed, cancelled, no_show]}, notes: {type: string, maxLength: 1000}}}
-    Appointment: {type: object, required: [id, person_id, person_name, customer_id, customer_name, customer_phone, service_id, service_name, service_duration_minutes, starts_at, ends_at, status, channel, notes, version, created_at, updated_at], properties: {id: {type: string, format: uuid}, person_id: {type: string, format: uuid}, person_name: {type: string}, customer_id: {type: string, format: uuid}, customer_name: {type: string}, customer_phone: {type: string}, service_id: {type: string, format: uuid}, service_name: {type: string}, service_duration_minutes: {type: integer}, starts_at: {type: string, format: date-time}, ends_at: {type: string, format: date-time}, status: {type: string, enum: [pending, confirmed, completed, cancelled, no_show]}, channel: {type: string, enum: [manual, whatsapp]}, notes: {type: string}, version: {type: integer, minimum: 1}, created_at: {type: string, format: date-time}, updated_at: {type: string, format: date-time}}}
+    Appointment: {type: object, required: [id, person_id, person_name, customer_id, customer_name, customer_phone, service_id, service_name, service_duration_minutes, starts_at, ends_at, status, channel, notes, created_at, updated_at], properties: {id: {type: string, format: uuid}, person_id: {type: string, format: uuid}, person_name: {type: string}, customer_id: {type: string, format: uuid}, customer_name: {type: string}, customer_phone: {type: string}, service_id: {type: string, format: uuid}, service_name: {type: string}, service_duration_minutes: {type: integer}, starts_at: {type: string, format: date-time}, ends_at: {type: string, format: date-time}, status: {type: string, enum: [pending, confirmed, completed, cancelled, no_show]}, channel: {type: string, enum: [manual, whatsapp]}, notes: {type: string}, created_at: {type: string, format: date-time}, updated_at: {type: string, format: date-time}}}
     Problem: {type: object, required: [type, title, status, detail, instance, errors], properties: {type: {type: string}, title: {type: string}, status: {type: integer}, detail: {type: string}, instance: {type: string}, existing_customer: {$ref: '#/components/schemas/Customer'}, message: {$ref: '#/components/schemas/Message'}, errors: {type: array, items: {type: object, required: [field, pointer, code, reason], properties: {field: {type: string}, pointer: {type: string}, code: {type: string}, reason: {type: string}}}}}}

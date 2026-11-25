@@ -28,8 +28,6 @@ func writeError(c *gin.Context, err error) {
 		sharedrest.WriteProblem(c, http.StatusNotFound, "Not Found", "The requested catalog resource does not exist.")
 	case errors.Is(err, application.ErrConflict):
 		sharedrest.WriteProblem(c, http.StatusConflict, "Conflict", "The catalog state conflicts with this operation.")
-	case errors.Is(err, application.ErrPreconditionFailed):
-		sharedrest.WriteProblem(c, http.StatusPreconditionFailed, "Precondition Failed", "The catalog resource has changed.")
 	case errors.Is(err, domain.ErrInvalid):
 		sharedrest.WriteProblem(c, http.StatusUnprocessableEntity, "Unprocessable Content", "The catalog data or ordering is invalid.")
 	default:

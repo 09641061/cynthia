@@ -12,6 +12,6 @@ type CustomerStore interface {
 	GetCustomer(ctx context.Context, id string) (domain.Customer, error)
 	GetCustomerByPhone(ctx context.Context, phone string) (domain.Customer, error)
 	CreateCustomer(ctx context.Context, customer domain.Customer) (domain.Customer, error)
-	UpdateCustomer(ctx context.Context, id string, expectedVersion int64, name, phone string) (domain.Customer, error)
+	UpdateCustomer(ctx context.Context, id, name, phone string) (domain.Customer, error)
 	DeleteCustomer(ctx context.Context, id string) error
 }

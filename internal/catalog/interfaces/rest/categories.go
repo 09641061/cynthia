@@ -20,16 +20,11 @@ func (h Handler) createCategory(c *gin.Context) {
 	}
 	c.Header("Cache-Control", "no-store")
 	c.Header("Location", "/v1/catalog/categories/"+category.ID)
-	c.Header("ETag", sharedrest.EntityTag(category.Version))
 	c.JSON(http.StatusCreated, category)
 }
 
 func (h Handler) updateCategory(c *gin.Context) {
-	id, ok := pathID(c, "id")
-	if !ok {
-		return
-	}
-	version, ok := sharedrest.IfMatch(c)
+	id, ok := sharedrest.PathUUID(c, "id")
 	if !ok {
 		return
 	}
@@ -37,26 +32,21 @@ func (h Handler) updateCategory(c *gin.Context) {
 	if !sharedrest.BindJSON(c, &request) {
 		return
 	}
-	category, err := h.catalog.UpdateCategory(c.Request.Context(), id, request.Name, version)
+	category, err := h.catalog.UpdateCategory(c.Request.Context(), id, request.Name)
 	if err != nil {
 		writeError(c, err)
 		return
 	}
 	c.Header("Cache-Control", "no-store")
-	c.Header("ETag", sharedrest.EntityTag(category.Version))
 	c.JSON(http.StatusOK, category)
 }
 
 func (h Handler) deleteCategory(c *gin.Context) {
-	id, ok := pathID(c, "id")
+	id, ok := sharedrest.PathUUID(c, "id")
 	if !ok {
 		return
 	}
-	version, ok := sharedrest.IfMatch(c)
-	if !ok {
-		return
-	}
-	if err := h.catalog.DeleteCategory(c.Request.Context(), id, version); err != nil {
+	if err := h.catalog.DeleteCategory(c.Request.Context(), id); err != nil {
 		writeError(c, err)
 		return
 	}
@@ -65,11 +55,7 @@ func (h Handler) deleteCategory(c *gin.Context) {
 }
 
 func (h Handler) moveCategory(c *gin.Context) {
-	id, ok := pathID(c, "id")
-	if !ok {
-		return
-	}
-	version, ok := sharedrest.IfMatch(c)
+	id, ok := sharedrest.PathUUID(c, "id")
 	if !ok {
 		return
 	}
@@ -77,12 +63,11 @@ func (h Handler) moveCategory(c *gin.Context) {
 	if !sharedrest.BindJSON(c, &request) {
 		return
 	}
-	category, err := h.catalog.MoveCategory(c.Request.Context(), id, request.SortOrder, version)
+	category, err := h.catalog.MoveCategory(c.Request.Context(), id, request.SortOrder)
 	if err != nil {
 		writeError(c, err)
 		return
 	}
 	c.Header("Cache-Control", "no-store")
-	c.Header("ETag", sharedrest.EntityTag(category.Version))
 	c.JSON(http.StatusOK, category)
 }

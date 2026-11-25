@@ -4,23 +4,29 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
-	"os"
 	"strings"
 )
 
 // Verifier validates Meta WhatsApp webhook verification challenges and HMAC-SHA256 signatures.
-type Verifier struct{}
+type Verifier struct {
+	verifyToken string
+	appSecret   string
+}
 
 // NewVerifier creates a Meta WhatsApp webhook verifier.
-func NewVerifier() *Verifier { return &Verifier{} }
+func NewVerifier(cfg Config) *Verifier {
+	return &Verifier{
+		verifyToken: strings.TrimSpace(cfg.VerifyToken),
+		appSecret:   strings.TrimSpace(cfg.AppSecret),
+	}
+}
 
 // VerifyChallenge validates Meta's webhook subscription handshake.
 func (v *Verifier) VerifyChallenge(mode, token, challenge string) (string, bool) {
-	expected := strings.TrimSpace(os.Getenv("WHATSAPP_VERIFY_TOKEN"))
-	if expected == "" || mode != "subscribe" || challenge == "" {
+	if v.verifyToken == "" || mode != "subscribe" || challenge == "" {
 		return "", false
 	}
-	if !hmac.Equal([]byte(token), []byte(expected)) {
+	if !hmac.Equal([]byte(token), []byte(v.verifyToken)) {
 		return "", false
 	}
 	return challenge, true
@@ -28,8 +34,7 @@ func (v *Verifier) VerifyChallenge(mode, token, challenge string) (string, bool)
 
 // VerifySignature verifies the X-Hub-Signature-256 header against the raw request body.
 func (v *Verifier) VerifySignature(signatureHeader string, body []byte) bool {
-	secret := strings.TrimSpace(os.Getenv("WHATSAPP_APP_SECRET"))
-	if secret == "" {
+	if v.appSecret == "" {
 		return false
 	}
 	const prefix = "sha256="
@@ -41,7 +46,7 @@ func (v *Verifier) VerifySignature(signatureHeader string, body []byte) bool {
 	if err != nil {
 		return false
 	}
-	mac := hmac.New(sha256.New, []byte(secret))
+	mac := hmac.New(sha256.New, []byte(v.appSecret))
 	mac.Write(body)
 	expected := mac.Sum(nil)
 	return hmac.Equal(provided, expected)

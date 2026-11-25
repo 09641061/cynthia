@@ -20,15 +20,12 @@ type CustomerSummary struct {
 
 // CustomerReader reads CRM customer summaries for cross-context queries.
 type CustomerReader struct {
-	db *sql.DB
+	db *sharedpostgres.Client
 }
 
 // NewCustomerReader creates a reader for CRM customer records.
 func NewCustomerReader(db *sharedpostgres.Client) *CustomerReader {
-	if db == nil {
-		return &CustomerReader{}
-	}
-	return &CustomerReader{db: db.DB}
+	return &CustomerReader{db: db}
 }
 
 // GetCustomer fetches a single customer summary by ID.
@@ -37,9 +34,11 @@ func (r *CustomerReader) GetCustomer(ctx context.Context, id string) (CustomerSu
 		return CustomerSummary{}, ErrCustomerNotFound
 	}
 	var c CustomerSummary
-	err := r.db.QueryRowContext(ctx,
-		`SELECT id, name, phone FROM crm_customers WHERE id = $1`, id,
-	).Scan(&c.ID, &c.Name, &c.Phone)
+	err := r.db.Do(ctx, func() error {
+		return r.db.QueryRowContext(ctx,
+			`SELECT id, name, phone FROM crm_customers WHERE id = $1`, id,
+		).Scan(&c.ID, &c.Name, &c.Phone)
+	})
 	if errors.Is(err, sql.ErrNoRows) {
 		return CustomerSummary{}, ErrCustomerNotFound
 	}
@@ -52,19 +51,22 @@ func (r *CustomerReader) GetCustomersByIDs(ctx context.Context, ids []string) (m
 	if r.db == nil || len(ids) == 0 {
 		return result, nil
 	}
-	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, name, phone FROM crm_customers WHERE id = ANY($1::uuid[])`, ids,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var c CustomerSummary
-		if err := rows.Scan(&c.ID, &c.Name, &c.Phone); err != nil {
-			return nil, err
+	err := r.db.Do(ctx, func() error {
+		rows, err := r.db.QueryContext(ctx,
+			`SELECT id, name, phone FROM crm_customers WHERE id = ANY($1::uuid[])`, ids,
+		)
+		if err != nil {
+			return err
 		}
-		result[c.ID] = c
-	}
-	return result, rows.Err()
+		defer rows.Close()
+		for rows.Next() {
+			var c CustomerSummary
+			if err := rows.Scan(&c.ID, &c.Name, &c.Phone); err != nil {
+				return err
+			}
+			result[c.ID] = c
+		}
+		return rows.Err()
+	})
+	return result, err
 }

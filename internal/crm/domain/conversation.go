@@ -17,7 +17,6 @@ type Conversation struct {
 	CustomerID         string
 	Channel            string
 	Status             string
-	Version            int64
 	LastMessageAt      *time.Time
 	LastMessagePreview *string
 	CreatedAt          time.Time

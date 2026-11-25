@@ -20,7 +20,7 @@ func NewStore(db *sharedpostgres.Client) *Store { return &Store{db: db} }
 
 func categoryServices(ctx context.Context, tx *sql.Tx, categoryID string) ([]domain.Service, error) {
 	rows, err := tx.QueryContext(ctx, `SELECT id, category_id, name, duration_minutes,
-		price_minor_units, sort_order, version, created_at, updated_at
+		price_minor_units, sort_order, created_at, updated_at
 		FROM catalog_services WHERE category_id = $1 ORDER BY sort_order`, categoryID)
 	if err != nil {
 		return nil, fmt.Errorf("list category services: %w", err)
@@ -30,7 +30,7 @@ func categoryServices(ctx context.Context, tx *sql.Tx, categoryID string) ([]dom
 		var service domain.Service
 		if err := rows.Scan(&service.ID, &service.CategoryID, &service.Name,
 			&service.DurationMinute, &service.PriceMinor, &service.SortOrder,
-			&service.Version, &service.CreatedAt, &service.UpdatedAt); err != nil {
+			&service.CreatedAt, &service.UpdatedAt); err != nil {
 			return nil, errors.Join(fmt.Errorf("scan category service: %w", err), rows.Close())
 		}
 		services = append(services, service)

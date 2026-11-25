@@ -79,30 +79,21 @@ func (m *memStore) CreateAppointment(_ context.Context, appt domain.Appointment)
 	return appt, nil
 }
 
-func (m *memStore) UpdateAppointment(_ context.Context, expectedVersion int64, appt domain.Appointment) (domain.Appointment, error) {
+func (m *memStore) UpdateAppointment(_ context.Context, appt domain.Appointment) (domain.Appointment, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	cur, ok := m.items[appt.ID]
-	if !ok {
+	if _, ok := m.items[appt.ID]; !ok {
 		return domain.Appointment{}, domain.ErrNotFound
 	}
-	if cur.Version != expectedVersion {
-		return domain.Appointment{}, domain.ErrVersionConflict
-	}
-	appt.Version = cur.Version + 1
 	m.items[appt.ID] = appt
 	return appt, nil
 }
 
-func (m *memStore) DeleteAppointment(_ context.Context, id string, expectedVersion int64) error {
+func (m *memStore) DeleteAppointment(_ context.Context, id string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	cur, ok := m.items[id]
-	if !ok {
+	if _, ok := m.items[id]; !ok {
 		return domain.ErrNotFound
-	}
-	if cur.Version != expectedVersion {
-		return domain.ErrVersionConflict
 	}
 	delete(m.items, id)
 	return nil

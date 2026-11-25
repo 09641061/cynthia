@@ -61,12 +61,11 @@ func (h Handler) createAppointment(c *gin.Context) {
 	}
 	c.Header("Cache-Control", "no-store")
 	c.Header("Location", "/v1/appointments/"+created.Appointment.ID)
-	c.Header("ETag", sharedrest.EntityTag(created.Appointment.Version))
 	c.JSON(http.StatusCreated, toAppointmentResource(created))
 }
 
 func (h Handler) getAppointment(c *gin.Context) {
-	id, ok := pathUUID(c, "id")
+	id, ok := sharedrest.PathUUID(c, "id")
 	if !ok {
 		return
 	}
@@ -76,16 +75,11 @@ func (h Handler) getAppointment(c *gin.Context) {
 		return
 	}
 	c.Header("Cache-Control", "no-store")
-	c.Header("ETag", sharedrest.EntityTag(view.Appointment.Version))
 	c.JSON(http.StatusOK, toAppointmentResource(view))
 }
 
 func (h Handler) updateAppointment(c *gin.Context) {
-	id, ok := pathUUID(c, "id")
-	if !ok {
-		return
-	}
-	version, ok := sharedrest.IfMatch(c)
+	id, ok := sharedrest.PathUUID(c, "id")
 	if !ok {
 		return
 	}
@@ -96,7 +90,7 @@ func (h Handler) updateAppointment(c *gin.Context) {
 	if !validOptionalUUID(c, input.PersonID) || !validOptionalUUID(c, input.CustomerID) || !validOptionalUUID(c, input.ServiceID) {
 		return
 	}
-	updated, err := h.service.Update(c.Request.Context(), id, version, application.UpdateAppointmentInput{
+	updated, err := h.service.Update(c.Request.Context(), id, application.UpdateAppointmentInput{
 		PersonID:   input.PersonID,
 		CustomerID: input.CustomerID,
 		ServiceID:  input.ServiceID,
@@ -110,20 +104,15 @@ func (h Handler) updateAppointment(c *gin.Context) {
 		return
 	}
 	c.Header("Cache-Control", "no-store")
-	c.Header("ETag", sharedrest.EntityTag(updated.Appointment.Version))
 	c.JSON(http.StatusOK, toAppointmentResource(updated))
 }
 
 func (h Handler) deleteAppointment(c *gin.Context) {
-	id, ok := pathUUID(c, "id")
+	id, ok := sharedrest.PathUUID(c, "id")
 	if !ok {
 		return
 	}
-	version, ok := sharedrest.IfMatch(c)
-	if !ok {
-		return
-	}
-	if err := h.service.Delete(c.Request.Context(), id, version); err != nil {
+	if err := h.service.Delete(c.Request.Context(), id); err != nil {
 		writeError(c, err)
 		return
 	}
