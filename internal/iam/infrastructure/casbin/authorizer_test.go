@@ -51,6 +51,8 @@ func TestCasbinEnforcesOwnerAdminAndRolePermissions(t *testing.T) {
 
 	assertEnforce(t, authz, ctx, ownerID, "iam", "manage_roles", true)
 	assertEnforce(t, authz, ctx, adminID, "catalog", "manage", true)
+	assertEnforce(t, authz, ctx, ownerID, "scheduling", "appear", false)
+	assertEnforce(t, authz, ctx, adminID, "scheduling", "appear", false)
 	assertEnforce(t, authz, ctx, memberID, "calendar", "manage", true)
 	assertEnforce(t, authz, ctx, memberID, "iam", "manage_users", false)
 

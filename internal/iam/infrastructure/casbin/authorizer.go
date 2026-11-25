@@ -24,7 +24,7 @@ g = _, _
 e = some(where (p.eft == allow))
 
 [matchers]
-m = g(r.sub, "owner") || g(r.sub, "iam.administrator") || (g(r.sub, p.sub) && r.obj == p.obj && r.act == p.act)
+m = ((g(r.sub, "owner") || g(r.sub, "iam.administrator")) && !(r.obj == "scheduling" && r.act == "appear")) || (g(r.sub, p.sub) && r.obj == p.obj && r.act == p.act)
 `
 
 // ActorLoader loads the authoritative user and roles state from PostgreSQL.
