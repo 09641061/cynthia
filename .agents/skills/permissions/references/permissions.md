@@ -14,7 +14,7 @@ Hierarchy does not replace permissions. Being above another group does not permi
 
 Administrator is an advanced permission that grants access to all application resources and functionality. A Member obtains it through a group with Administrator enabled; it is not a third member type and does not make the person an Owner.
 
-Administrator grants all functional permissions but does not remove hierarchical restrictions. If two administrators are at different levels, the higher one may modify the lower one's groups and permissions, subject to the other applicable rules. The lower administrator cannot directly modify the higher one's memberships. If they are at the same level, neither can directly modify the other's memberships. Effective permissions may be affected indirectly by changes to shared groups, according to the rules for that functionality.
+Administrator grants all functional permissions but does not remove hierarchical restrictions. Scheduling appearance is an explicit eligibility grant, not implied by Administrator or any general access permission; see [Scheduling authorization](scheduling.md). If two administrators are at different levels, the higher one may modify the lower one's groups and permissions, subject to the other applicable rules. The lower administrator cannot directly modify the higher one's memberships. If they are at the same level, neither can directly modify the other's memberships. Effective permissions may be affected indirectly by changes to shared groups, according to the rules for that functionality.
 
 The Owner retains the highest authority even over a Member with Administrator. Full functional access does not place an Administrator above the Owner.
 

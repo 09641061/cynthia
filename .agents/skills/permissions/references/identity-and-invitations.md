@@ -6,7 +6,7 @@
 
 The Owner is the system's highest authority. There is a single primary Owner, identified by a crown in the member list. Owner status belongs to the user account and is not represented by a group; consequently, Owner does not appear in the group list.
 
-The Owner has full access to application functionality and permissions. Their authority is above all groups and members, including those with the Administrator permission. The hierarchical restrictions applicable to Members do not limit the Owner's ability to manage groups, permissions, and members.
+The Owner has full access to application functionality and permissions, except that being an eligible Scheduling resource requires an explicit appearance grant even for the Owner; see [Scheduling authorization](scheduling.md). Their authority is above all groups and members, including those with the Administrator permission. The hierarchical restrictions applicable to Members do not limit the Owner's ability to manage groups, permissions, and members.
 
 The system will not provide functionality to transfer Owner status. If the person holding this position must change, the change will be made through an administrative procedure outside the application's ordinary functionality.
 

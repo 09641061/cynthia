@@ -1,0 +1,78 @@
+package application
+
+import (
+	"context"
+	"errors"
+	"strings"
+
+	"github.com/google/uuid"
+	"go-service/internal/crm/domain"
+)
+
+// ReceiveInbound processes an inbound WhatsApp message: auto-registers customer, opens/reopens conversation, and deduplicates by external_id.
+func (s *MessageService) ReceiveInbound(ctx context.Context, externalID, rawPhone, profileName, rawContent string) (domain.Message, error) {
+	extID := strings.TrimSpace(externalID)
+	if extID == "" {
+		return domain.Message{}, domain.InvalidFieldError{Field: "external_id", Reason: "must not be blank"}
+	}
+	if existing, err := s.messages.GetMessageByExternalID(ctx, extID); err == nil {
+		return existing, nil
+	} else if !errors.Is(err, ErrNotFound) {
+		return domain.Message{}, err
+	}
+	phoneInput := strings.TrimSpace(rawPhone)
+	if phoneInput != "" && !strings.HasPrefix(phoneInput, "+") {
+		phoneInput = "+" + phoneInput
+	}
+	phone, err := domain.NormalizePhone(phoneInput)
+	if err != nil {
+		return domain.Message{}, err
+	}
+	content, err := domain.ValidateMessageContent(rawContent)
+	if err != nil {
+		return domain.Message{}, err
+	}
+	name := strings.TrimSpace(profileName)
+	if name == "" {
+		name = phone
+	}
+	customer, err := s.inboundUsers.FindOrCreateCustomerByPhone(ctx, uuid.NewString(), name, phone)
+	if err != nil {
+		return domain.Message{}, err
+	}
+	conv, err := s.conversations.EnsureOpenConversation(ctx, customer.ID)
+	if err != nil {
+		return domain.Message{}, err
+	}
+	msg, created, err := s.messages.InsertInboundMessage(ctx, domain.Message{
+		ID:             uuid.NewString(),
+		ConversationID: conv.ID,
+		ExternalID:     &extID,
+		Direction:      domain.MessageDirectionInbound,
+		Content:        content,
+		Status:         domain.MessageStatusReceived,
+	}, domain.MessagePreview(content))
+	if err == nil && created {
+		s.publishMessageCreated(msg.ConversationID)
+		if s.inboundHook != nil {
+			s.inboundHook.OnInboundMessage(ctx, msg.ConversationID, msg.ID)
+		}
+	}
+	return msg, err
+}
+
+// SetInboundHook configures an optional hook invoked when a new inbound message is persisted.
+func (s *MessageService) SetInboundHook(hook InboundHook) {
+	s.inboundHook = hook
+}
+
+// SetEventPublisher configures an optional publisher for real-time CRM events.
+func (s *MessageService) SetEventPublisher(publisher EventPublisher) {
+	s.events = publisher
+}
+
+func (s *MessageService) publishMessageCreated(conversationID string) {
+	if s.events != nil {
+		s.events.Publish(Event{Type: EventMessageCreated, ConversationID: conversationID})
+	}
+}
