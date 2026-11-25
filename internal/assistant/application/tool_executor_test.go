@@ -68,7 +68,7 @@ func TestToolExecutorConfirmationGateAndMutationLimit(t *testing.T) {
 	argsConfirmed := `{"service_id":"svc-1","person_id":"p-1","start_at":"2026-12-01T15:00:00Z","confirmed_by_customer":true}`
 
 	// 1. No prior assistant turn -> confirmation_required
-	execNoPrior := application.NewToolExecutor(crm, stubCatalog{}, cal, conv, false)
+	execNoPrior := application.NewToolExecutor(crm, stubCatalog{}, cal, conv, false, "PEN")
 	out := execNoPrior.Execute(context.Background(), domain.ToolCall{
 		ID: "1", Function: domain.ToolCallFunction{Name: "create_appointment", Arguments: argsConfirmed},
 	})
@@ -76,20 +76,14 @@ func TestToolExecutorConfirmationGateAndMutationLimit(t *testing.T) {
 		t.Fatalf("expected confirmation_required without prior turn, got %s", out)
 	}
 
-	// 2. Queried in same job -> confirmation_required
-	execQueried := application.NewToolExecutor(crm, stubCatalog{}, cal, conv, true)
-	_ = execQueried.Execute(context.Background(), domain.ToolCall{
-		ID: "2", Function: domain.ToolCallFunction{Name: "get_available_slots", Arguments: `{"date":"2026-12-01","service_id":"svc-1"}`},
+	// 2. Prior turn + read tools (UUID recovery) + confirmed mutation -> succeeds once, second hits mutation_limit_reached
+	exec := application.NewToolExecutor(crm, stubCatalog{}, cal, conv, true, "PEN")
+	_ = exec.Execute(context.Background(), domain.ToolCall{
+		ID: "2", Function: domain.ToolCallFunction{Name: "list_services", Arguments: `{}`},
 	})
-	out = execQueried.Execute(context.Background(), domain.ToolCall{
-		ID: "3", Function: domain.ToolCallFunction{Name: "create_appointment", Arguments: argsConfirmed},
+	_ = exec.Execute(context.Background(), domain.ToolCall{
+		ID: "3", Function: domain.ToolCallFunction{Name: "get_available_slots", Arguments: `{"date":"2026-12-01","service_id":"svc-1"}`},
 	})
-	if !strings.Contains(out, "confirmation_required") {
-		t.Fatalf("expected confirmation_required after query in same job, got %s", out)
-	}
-
-	// 3. Confirmed with prior turn and no query -> succeeds once, second hits mutation_limit_reached
-	exec := application.NewToolExecutor(crm, stubCatalog{}, cal, conv, true)
 	out = exec.Execute(context.Background(), domain.ToolCall{
 		ID: "4", Function: domain.ToolCallFunction{Name: "create_appointment", Arguments: argsConfirmed},
 	})
@@ -106,7 +100,7 @@ func TestToolExecutorConfirmationGateAndMutationLimit(t *testing.T) {
 
 func TestToolExecutorHandoffToHuman(t *testing.T) {
 	crm := &stubCRM{}
-	exec := application.NewToolExecutor(crm, stubCatalog{}, &stubCalendar{}, application.Conversation{ID: "c1", CustomerID: "u1"}, true)
+	exec := application.NewToolExecutor(crm, stubCatalog{}, &stubCalendar{}, application.Conversation{ID: "c1", CustomerID: "u1"}, true, "PEN")
 	out := exec.Execute(context.Background(), domain.ToolCall{
 		ID: "h1", Function: domain.ToolCallFunction{Name: "handoff_to_human", Arguments: `{"reason":"billing question"}`},
 	})
@@ -118,7 +112,7 @@ func TestToolExecutorHandoffToHuman(t *testing.T) {
 func TestToolExecutorReadToolsRescheduleAndUnconfirmed(t *testing.T) {
 	conv := application.Conversation{ID: "c1", CustomerID: "cust-1"}
 	cal := &stubCalendar{}
-	exec := application.NewToolExecutor(&stubCRM{}, stubCatalog{}, cal, conv, true)
+	exec := application.NewToolExecutor(&stubCRM{}, stubCatalog{}, cal, conv, true, "PEN")
 
 	out := exec.Execute(context.Background(), domain.ToolCall{
 		ID: "u1", Function: domain.ToolCallFunction{Name: "reschedule_appointment", Arguments: `{"appointment_id":"apt-1","start_at":"2026-12-02T15:00:00Z","confirmed_by_customer":false}`},

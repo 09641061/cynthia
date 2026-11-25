@@ -16,8 +16,8 @@ type ToolExecutor struct {
 	calendar              CalendarGateway
 	convID                string
 	customerID            string
+	currencyCode          string
 	hasPriorAssistantTurn bool
-	queriedThisJob        bool
 	mutationsThisJob      int
 	handedOffInTurn       bool
 }
@@ -29,6 +29,7 @@ func NewToolExecutor(
 	calendar CalendarGateway,
 	conv Conversation,
 	hasPriorAssistantTurn bool,
+	currencyCode string,
 ) *ToolExecutor {
 	return &ToolExecutor{
 		crm:                   crm,
@@ -36,6 +37,7 @@ func NewToolExecutor(
 		calendar:              calendar,
 		convID:                conv.ID,
 		customerID:            conv.CustomerID,
+		currencyCode:          currencyCode,
 		hasPriorAssistantTurn: hasPriorAssistantTurn,
 	}
 }
@@ -69,16 +71,14 @@ func (e *ToolExecutor) Execute(ctx context.Context, call domain.ToolCall) string
 }
 
 func (e *ToolExecutor) execListServices(ctx context.Context) string {
-	e.queriedThisJob = true
 	items, err := e.catalog.ListCatalogServices(ctx)
 	if err != nil {
 		return marshalMappedError(err)
 	}
-	return marshalToolPayload(map[string]any{"services": items})
+	return marshalToolPayload(map[string]any{"services": mapToolServices(items, e.currencyCode)})
 }
 
 func (e *ToolExecutor) execGetAvailableSlots(ctx context.Context, rawArgs string) string {
-	e.queriedThisJob = true
 	var args struct {
 		Date                 string `json:"date"`
 		ServiceID            string `json:"service_id"`
@@ -102,7 +102,6 @@ func (e *ToolExecutor) execGetAvailableSlots(ctx context.Context, rawArgs string
 }
 
 func (e *ToolExecutor) execListMyAppointments(ctx context.Context) string {
-	e.queriedThisJob = true
 	items, err := e.calendar.ListCustomerUpcomingAppointments(ctx, e.customerID)
 	if err != nil {
 		return marshalMappedError(err)

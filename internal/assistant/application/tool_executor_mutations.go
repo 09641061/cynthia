@@ -11,7 +11,7 @@ func (e *ToolExecutor) checkMutationGuard(confirmedByCustomer bool) (string, boo
 	if e.mutationsThisJob >= 1 {
 		return marshalToolError("mutation_limit_reached"), false
 	}
-	if !confirmedByCustomer || !e.hasPriorAssistantTurn || e.queriedThisJob {
+	if !confirmedByCustomer || !e.hasPriorAssistantTurn {
 		return marshalToolError("confirmation_required"), false
 	}
 	return "", true

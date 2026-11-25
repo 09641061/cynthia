@@ -58,3 +58,25 @@ func TestBuildMessagesOmitsBlankInstructions(t *testing.T) {
 		t.Fatalf("expected blank instructions omitted")
 	}
 }
+
+func TestBuildMessagesLocalTimezoneAndCurrency(t *testing.T) {
+	// 2026-06-02T02:30:00Z is 2026-06-01T21:30:00-05:00 (Monday) in America/Lima.
+	nowUTC := time.Date(2026, 6, 2, 2, 30, 0, 0, time.UTC)
+	msgs := BuildMessages(PromptConfig{
+		Timezone:     "America/Lima",
+		CurrencyCode: "PEN",
+		Now:          nowUTC,
+	}, nil)
+	sys := msgs[0].Content
+	wantLocal := "Current local date & time (America/Lima): 2026-06-01T21:30:00-05:00 (Monday)"
+	wantTomorrow := "Tomorrow local date: 2026-06-02 (Tuesday)"
+	if !strings.Contains(sys, wantLocal) {
+		t.Fatalf("expected %q in system prompt, got:\n%s", wantLocal, sys)
+	}
+	if !strings.Contains(sys, wantTomorrow) {
+		t.Fatalf("expected %q in system prompt, got:\n%s", wantTomorrow, sys)
+	}
+	if !strings.Contains(sys, "Currency: PEN") {
+		t.Fatalf("expected Currency: PEN in system prompt, got:\n%s", sys)
+	}
+}

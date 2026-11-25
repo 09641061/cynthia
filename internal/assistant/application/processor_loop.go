@@ -24,13 +24,14 @@ func (p *Processor) generateReply(ctx context.Context, orgCfg OrgConfig, conv Co
 	}
 	promptCfg := domain.PromptConfig{
 		Timezone:       orgCfg.Timezone,
+		CurrencyCode:   orgCfg.CurrencyCode,
 		BusinessHours:  orgCfg.BusinessHours,
 		AiInstructions: orgCfg.AiInstructions,
 		Now:            p.now(),
 	}
 	chatMsgs := domain.BuildMessages(promptCfg, history)
 	tools := AllToolDefinitions()
-	exec := NewToolExecutor(p.crm, p.catalog, p.calendar, conv, hasPriorAssistantTurn)
+	exec := NewToolExecutor(p.crm, p.catalog, p.calendar, conv, hasPriorAssistantTurn, orgCfg.CurrencyCode)
 
 	for round := 0; round < domain.MaxToolRounds; round++ {
 		res, err := p.llm.Complete(ctx, chatMsgs, tools)

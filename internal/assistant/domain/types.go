@@ -63,6 +63,7 @@ type DayHours struct {
 // PromptConfig carries organization schedule and instructions for prompt assembly.
 type PromptConfig struct {
 	Timezone       string
+	CurrencyCode   string
 	BusinessHours  []DayHours
 	AiInstructions string
 	Now            time.Time
