@@ -42,7 +42,7 @@ func newTestRouter() *gin.Engine {
 	closedDay := domain.DayHours{IsOpen: false, OpenTime: "09:00", CloseTime: "18:00"}
 	store := &fakeStore{org: domain.Organization{
 		ID: uuid.NewString(), Name: "Takodu", BusinessType: "Salon",
-		Timezone: "UTC", Version: 1,
+		Timezone: "UTC", CurrencyCode: "USD", Version: 1,
 		BusinessHours: domain.BusinessHours{
 			Monday: openDay, Tuesday: openDay, Wednesday: openDay,
 			Thursday: openDay, Friday: openDay, Saturday: closedDay, Sunday: closedDay,
@@ -77,7 +77,7 @@ func TestGetAndPatchOrganization(t *testing.T) {
 		t.Fatalf("expected 400 on unknown field, got %d", rec.Code)
 	}
 
-	req = httptest.NewRequest(http.MethodPatch, "/v1/organization", bytes.NewBufferString(`{"name":"Studio X"}`))
+	req = httptest.NewRequest(http.MethodPatch, "/v1/organization", bytes.NewBufferString(`{"name":"Studio X","currency_code":"EUR"}`))
 	req.Header.Set("If-Match", `"v1"`)
 	rec = httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
@@ -85,7 +85,7 @@ func TestGetAndPatchOrganization(t *testing.T) {
 		t.Fatalf("unexpected PATCH response: %d %q", rec.Code, rec.Header().Get("ETag"))
 	}
 	var got domain.Organization
-	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil || got.Name != "Studio X" {
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil || got.Name != "Studio X" || got.CurrencyCode != "EUR" {
 		t.Fatalf("unexpected body: %v %+v", err, got)
 	}
 
@@ -103,5 +103,13 @@ func TestGetAndPatchOrganization(t *testing.T) {
 	r.ServeHTTP(rec, req)
 	if rec.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("expected 422 on invalid timezone, got %d", rec.Code)
+	}
+
+	req = httptest.NewRequest(http.MethodPatch, "/v1/organization", bytes.NewBufferString(`{"currency_code":"eur"}`))
+	req.Header.Set("If-Match", `"v2"`)
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422 on invalid currency_code, got %d", rec.Code)
 	}
 }

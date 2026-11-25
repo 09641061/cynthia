@@ -46,6 +46,7 @@ type Organization struct {
 	BusinessType          string        `json:"business_type"`
 	ContactEmail          string        `json:"contact_email"`
 	Timezone              string        `json:"timezone"`
+	CurrencyCode          string        `json:"currency_code"`
 	BusinessHours         BusinessHours `json:"business_hours"`
 	AiInstructions        string        `json:"ai_instructions"`
 	WhatsAppPhoneNumber   string        `json:"whatsapp_phone_number"`
@@ -62,6 +63,7 @@ type UpdatePatch struct {
 	BusinessType          *string        `json:"business_type"`
 	ContactEmail          *string        `json:"contact_email"`
 	Timezone              *string        `json:"timezone"`
+	CurrencyCode          *string        `json:"currency_code"`
 	BusinessHours         *BusinessHours `json:"business_hours"`
 	AiInstructions        *string        `json:"ai_instructions"`
 	WhatsAppPhoneNumber   *string        `json:"whatsapp_phone_number"`
@@ -83,6 +85,9 @@ func ApplyPatch(current Organization, patch UpdatePatch) (Organization, error) {
 	}
 	if patch.Timezone != nil {
 		next.Timezone = strings.TrimSpace(*patch.Timezone)
+	}
+	if patch.CurrencyCode != nil {
+		next.CurrencyCode = *patch.CurrencyCode
 	}
 	if patch.BusinessHours != nil {
 		next.BusinessHours = *patch.BusinessHours

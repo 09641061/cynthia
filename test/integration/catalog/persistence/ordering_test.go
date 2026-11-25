@@ -38,7 +38,7 @@ func TestPositionMovesAndDeletesPreserveIdentity(t *testing.T) {
 		if index == 1 {
 			position = 1
 		}
-		services[index], err = store.CreateService(ctx, first.ID, domain.Service{Name: "Service", DurationMinute: 30, CurrencyCode: "USD"}, position)
+		services[index], err = store.CreateService(ctx, first.ID, domain.Service{Name: "Service", DurationMinute: 30}, position)
 		if err != nil {
 			t.Fatalf("create service: %v", err)
 		}
@@ -65,7 +65,7 @@ func TestPositionMovesAndDeletesPreserveIdentity(t *testing.T) {
 	if _, err := store.MoveService(ctx, moved.ID, first.ID, 0, moved.Version); !errors.Is(err, domain.ErrInvalid) {
 		t.Fatalf("invalid position error = %v, want ErrInvalid", err)
 	}
-	if _, err := store.UpdateService(ctx, services[1].ID, domain.Service{Name: "Stale", DurationMinute: 30, CurrencyCode: "USD"}, services[1].Version); !errors.Is(err, application.ErrPreconditionFailed) {
+	if _, err := store.UpdateService(ctx, services[1].ID, domain.Service{Name: "Stale", DurationMinute: 30}, services[1].Version); !errors.Is(err, application.ErrPreconditionFailed) {
 		t.Fatalf("stale update error = %v, want ErrPreconditionFailed", err)
 	}
 	if err := store.DeleteService(ctx, moved.ID, moved.Version); err != nil {

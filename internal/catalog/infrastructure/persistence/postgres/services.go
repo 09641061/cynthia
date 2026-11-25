@@ -33,10 +33,10 @@ func (s *Store) CreateService(ctx context.Context, categoryID string, service do
 		created = service
 		created.ID, created.CategoryID, created.SortOrder = id.String(), categoryID, position
 		if err := tx.QueryRowContext(ctx, `INSERT INTO catalog_services
-			(id, category_id, name, duration_minutes, price_minor_units, currency_code, sort_order)
-			VALUES ($1,$2,$3,$4,$5,$6,$7)
+			(id, category_id, name, duration_minutes, price_minor_units, sort_order)
+			VALUES ($1,$2,$3,$4,$5,$6)
 			RETURNING version, created_at, updated_at`, created.ID, categoryID, service.Name,
-			service.DurationMinute, service.PriceMinor, service.CurrencyCode,
+			service.DurationMinute, service.PriceMinor,
 			created.SortOrder).Scan(&created.Version, &created.CreatedAt, &created.UpdatedAt); err != nil {
 			return fmt.Errorf("create catalog service: %w", err)
 		}
@@ -52,13 +52,13 @@ func (s *Store) UpdateService(ctx context.Context, id string, service domain.Ser
 			return err
 		}
 		return tx.QueryRowContext(ctx, `UPDATE catalog_services SET name = $2,
-			duration_minutes = $3, price_minor_units = $4, currency_code = $5, version = version + 1,
-			updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND version = $6
+			duration_minutes = $3, price_minor_units = $4, version = version + 1,
+			updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND version = $5
 			RETURNING id, category_id, name, duration_minutes, price_minor_units,
-			currency_code, sort_order, version, created_at, updated_at`, id, service.Name,
-			service.DurationMinute, service.PriceMinor, service.CurrencyCode, version).
+			sort_order, version, created_at, updated_at`, id, service.Name,
+			service.DurationMinute, service.PriceMinor, version).
 			Scan(&updated.ID, &updated.CategoryID, &updated.Name, &updated.DurationMinute,
-				&updated.PriceMinor, &updated.CurrencyCode, &updated.SortOrder, &updated.Version,
+				&updated.PriceMinor, &updated.SortOrder, &updated.Version,
 				&updated.CreatedAt, &updated.UpdatedAt)
 	})
 	if errors.Is(err, sql.ErrNoRows) {
