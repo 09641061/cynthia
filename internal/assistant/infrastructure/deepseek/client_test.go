@@ -78,15 +78,29 @@ func TestClientMalformedJSONAndTimeout(t *testing.T) {
 		t.Fatalf("expected error on malformed JSON")
 	}
 
-	slow := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		time.Sleep(150 * time.Millisecond)
+	done := make(chan struct{})
+	slow := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done():
+		case <-done:
+		}
 		_, _ = w.Write([]byte(`{"choices":[]}`))
 	}))
 	defer slow.Close()
+	defer close(done)
 	c2 := NewClient(slow.URL, "sk-1", "deepseek-chat")
 	c2.httpClient.Timeout = 20 * time.Millisecond
 	_, err := c2.Complete(context.Background(), nil, nil)
 	if !IsRetryable(err) {
 		t.Fatalf("expected retryable timeout error, got %v", err)
+	}
+
+	var nilClient *Client
+	for _, uncfg := range []*Client{nilClient, {}, NewClient(srv.URL, "   ", "deepseek-chat")} {
+		_, err := uncfg.Complete(context.Background(), nil, nil)
+		var apiErr *APIError
+		if !errors.As(err, &apiErr) || apiErr.Retryable {
+			t.Fatalf("expected permanent APIError for unconfigured client, got %v", err)
+		}
 	}
 }

@@ -43,11 +43,16 @@ func (g *AssistantCalendarGateway) RescheduleWhatsAppAppointment(ctx context.Con
 	if in.StartAt == nil && in.ServiceID == nil && in.PersonID == nil {
 		return AssistantAppointment{}, ErrNoFieldsToUpdate
 	}
+	tx, err := g.db.BeginTx(ctx, nil)
+	if err != nil {
+		return AssistantAppointment{}, err
+	}
+	defer func() { _ = tx.Rollback() }()
 	var curPersonID, curServiceID string
 	var curStartsAt time.Time
-	err := g.db.QueryRowContext(ctx,
+	err = tx.QueryRowContext(ctx,
 		`SELECT person_id, service_id, starts_at FROM calendar_appointments
-		 WHERE id = $1 AND customer_id = $2 AND status IN ('pending', 'confirmed') AND starts_at > NOW()`,
+		 WHERE id = $1 AND customer_id = $2 AND status IN ('pending', 'confirmed') AND starts_at > NOW() FOR UPDATE`,
 		in.AppointmentID, in.CustomerID,
 	).Scan(&curPersonID, &curServiceID, &curStartsAt)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -56,22 +61,13 @@ func (g *AssistantCalendarGateway) RescheduleWhatsAppAppointment(ctx context.Con
 	if err != nil {
 		return AssistantAppointment{}, err
 	}
-	targetPerson, targetService, targetStart := curPersonID, curServiceID, curStartsAt
-	if in.PersonID != nil {
-		targetPerson = *in.PersonID
-	}
-	if in.ServiceID != nil {
-		targetService = *in.ServiceID
-	}
-	if in.StartAt != nil {
-		targetStart = *in.StartAt
-	}
+	targetPerson, targetService, targetStart := in.resolveTargets(curPersonID, curServiceID, curStartsAt)
 	targetEnd, err := g.validateBookingTarget(ctx, targetService, targetPerson, targetStart)
 	if err != nil {
 		return AssistantAppointment{}, err
 	}
 	var res AssistantAppointment
-	err = g.db.QueryRowContext(ctx,
+	err = tx.QueryRowContext(ctx,
 		`UPDATE calendar_appointments
 		 SET person_id = $1, service_id = $2, starts_at = $3, ends_at = $4, version = version + 1, updated_at = CURRENT_TIMESTAMP
 		 WHERE id = $5 AND customer_id = $6 AND status IN ('pending', 'confirmed') AND starts_at > NOW()
@@ -83,6 +79,9 @@ func (g *AssistantCalendarGateway) RescheduleWhatsAppAppointment(ctx context.Con
 	}
 	if err != nil {
 		return AssistantAppointment{}, mapGatewayError(err)
+	}
+	if err := tx.Commit(); err != nil {
+		return AssistantAppointment{}, err
 	}
 	return res, nil
 }
@@ -107,6 +106,9 @@ func (g *AssistantCalendarGateway) CancelWhatsAppAppointment(ctx context.Context
 }
 
 func (g *AssistantCalendarGateway) validateBookingTarget(ctx context.Context, serviceID, personID string, startAt time.Time) (time.Time, error) {
+	if startAt.IsZero() || !startAt.After(g.now()) {
+		return time.Time{}, ErrSlotInPast
+	}
 	svc, err := g.serviceReader.GetService(ctx, serviceID)
 	if errors.Is(err, catalog.ErrServiceNotFound) {
 		return time.Time{}, ErrServiceNotFound

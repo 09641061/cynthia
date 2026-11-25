@@ -68,7 +68,7 @@ func (g *AssistantCalendarGateway) ListAvailability(ctx context.Context, query A
 	if err != nil {
 		return nil, err
 	}
-	dayEnd := day.Add(24 * time.Hour)
+	dayEnd := day.AddDate(0, 0, 1)
 	existing, err := g.store.ListAppointments(ctx, application.AppointmentFilter{From: &day, To: &dayEnd})
 	if err != nil {
 		return nil, err
@@ -78,7 +78,7 @@ func (g *AssistantCalendarGateway) ListAvailability(ctx context.Context, query A
 
 // ListCustomerUpcomingAppointments returns future pending/confirmed appointments owned by customerID.
 func (g *AssistantCalendarGateway) ListCustomerUpcomingAppointments(ctx context.Context, customerID string) ([]UpcomingAppointment, error) {
-	if g == nil || g.db == nil {
+	if g == nil || g.db == nil || g.serviceReader == nil {
 		return nil, ErrGatewayUnavailable
 	}
 	rows, err := g.db.QueryContext(ctx,
@@ -106,6 +106,9 @@ func (g *AssistantCalendarGateway) ListCustomerUpcomingAppointments(ctx context.
 }
 
 func (g *AssistantCalendarGateway) hydrateUpcoming(ctx context.Context, items []UpcomingAppointment, svcIDs, personIDs []string) ([]UpcomingAppointment, error) {
+	if len(items) == 0 {
+		return items, nil
+	}
 	svcs, err := g.serviceReader.GetServicesByIDs(ctx, svcIDs)
 	if err != nil {
 		return nil, err

@@ -20,6 +20,8 @@ var (
 	ErrNoFieldsToUpdate = errors.New("no fields to update")
 	// ErrGatewayUnavailable indicates the calendar gateway has no configured database.
 	ErrGatewayUnavailable = errors.New("calendar gateway unavailable")
+	// ErrSlotInPast indicates the requested slot start time is not in the future.
+	ErrSlotInPast = errors.New("slot is in the past")
 )
 
 // UpcomingAppointment is a customer-scoped upcoming appointment projection for the assistant.
@@ -60,4 +62,17 @@ type RescheduleWhatsAppAppointmentInput struct {
 	StartAt       *time.Time
 	ServiceID     *string
 	PersonID      *string
+}
+
+func (in RescheduleWhatsAppAppointmentInput) resolveTargets(personID, serviceID string, startAt time.Time) (string, string, time.Time) {
+	if in.PersonID != nil {
+		personID = *in.PersonID
+	}
+	if in.ServiceID != nil {
+		serviceID = *in.ServiceID
+	}
+	if in.StartAt != nil {
+		startAt = *in.StartAt
+	}
+	return personID, serviceID, startAt
 }

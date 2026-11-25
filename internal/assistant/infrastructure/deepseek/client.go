@@ -77,6 +77,9 @@ type chatResponse struct {
 
 // Complete executes a single Chat Completions request against DeepSeek.
 func (c *Client) Complete(ctx context.Context, messages []domain.ChatMessage, tools []domain.ToolDefinition) (domain.CompletionResult, error) {
+	if c == nil || c.httpClient == nil || strings.TrimSpace(c.apiKey) == "" {
+		return domain.CompletionResult{}, &APIError{StatusCode: 0, Retryable: false, Message: "deepseek client not configured"}
+	}
 	payload := chatRequest{
 		Model:       c.model,
 		Messages:    messages,
@@ -111,7 +114,7 @@ func (c *Client) Complete(ctx context.Context, messages []domain.ChatMessage, to
 	}
 
 	var decoded chatResponse
-	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&decoded); err != nil {
 		return domain.CompletionResult{}, c.redactErr(resp.StatusCode, true, "malformed response JSON")
 	}
 	if len(decoded.Choices) == 0 {
