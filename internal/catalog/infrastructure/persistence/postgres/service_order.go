@@ -55,9 +55,9 @@ func (s *Store) MoveService(ctx context.Context, id, categoryID string, position
 			}
 		}
 		return tx.QueryRowContext(ctx, `SELECT id, category_id, name, duration_minutes,
-			price_minor_units, currency_code, sort_order, version, created_at, updated_at FROM catalog_services
+			price_minor_units, sort_order, version, created_at, updated_at FROM catalog_services
 			WHERE id = $1`, id).Scan(&moved.ID, &moved.CategoryID, &moved.Name,
-			&moved.DurationMinute, &moved.PriceMinor, &moved.CurrencyCode, &moved.SortOrder, &moved.Version,
+			&moved.DurationMinute, &moved.PriceMinor, &moved.SortOrder, &moved.Version,
 			&moved.CreatedAt, &moved.UpdatedAt)
 	})
 	return moved, persistenceError(err)

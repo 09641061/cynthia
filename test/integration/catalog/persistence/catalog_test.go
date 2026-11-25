@@ -21,11 +21,11 @@ func TestMovePreservesIdentityAndRenumbersBothLists(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create target category: %v", err)
 	}
-	first, err := store.CreateService(ctx, source.ID, domain.Service{Name: "Cut", DurationMinute: 30, PriceMinor: 2500, CurrencyCode: "USD"}, 0)
+	first, err := store.CreateService(ctx, source.ID, domain.Service{Name: "Cut", DurationMinute: 30, PriceMinor: 2500}, 0)
 	if err != nil {
 		t.Fatalf("create first service: %v", err)
 	}
-	second, err := store.CreateService(ctx, source.ID, domain.Service{Name: "Color", DurationMinute: 60, PriceMinor: 7000, CurrencyCode: "USD"}, 0)
+	second, err := store.CreateService(ctx, source.ID, domain.Service{Name: "Color", DurationMinute: 60, PriceMinor: 7000}, 0)
 	if err != nil {
 		t.Fatalf("create second service: %v", err)
 	}
@@ -74,7 +74,7 @@ func TestConcurrentMovesAndCategoryCascade(t *testing.T) {
 	services := make([]domain.Service, 2)
 	categories := []domain.Category{source, secondSource}
 	for i := range services {
-		created, err := store.CreateService(ctx, categories[i].ID, domain.Service{Name: "Service", DurationMinute: 20, CurrencyCode: "USD"}, 0)
+		created, err := store.CreateService(ctx, categories[i].ID, domain.Service{Name: "Service", DurationMinute: 20}, 0)
 		if err != nil {
 			t.Fatal(err)
 		}

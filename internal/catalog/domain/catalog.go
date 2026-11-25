@@ -39,7 +39,6 @@ type Service struct {
 	Name           string    `json:"name"`
 	DurationMinute int       `json:"duration_minutes"`
 	PriceMinor     int64     `json:"price_minor_units"`
-	CurrencyCode   string    `json:"currency_code"`
 	SortOrder      int       `json:"sort_order"`
 	Version        int64     `json:"version"`
 	CreatedAt      time.Time `json:"created_at"`
@@ -58,7 +57,7 @@ func ValidateName(name string) error {
 }
 
 // ValidateService checks the catalog service fields and supported ranges.
-func ValidateService(name string, duration int, price int64, currency string) error {
+func ValidateService(name string, duration int, price int64) error {
 	if err := ValidateName(name); err != nil {
 		return err
 	}
@@ -67,14 +66,6 @@ func ValidateService(name string, duration int, price int64, currency string) er
 	}
 	if price < 0 {
 		return InvalidFieldError{Field: "price_minor_units", Reason: "must not be negative"}
-	}
-	if len(currency) != 3 {
-		return InvalidFieldError{Field: "currency_code", Reason: "must be three uppercase letters"}
-	}
-	for _, char := range currency {
-		if char < 'A' || char > 'Z' {
-			return InvalidFieldError{Field: "currency_code", Reason: "must be three uppercase letters"}
-		}
 	}
 	return nil
 }

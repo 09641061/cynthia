@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS organizations (
     business_type TEXT NOT NULL DEFAULT '' CHECK (char_length(business_type) <= 120),
     contact_email TEXT NOT NULL DEFAULT '' CHECK (char_length(contact_email) <= 254),
     timezone TEXT NOT NULL DEFAULT 'UTC' CHECK (char_length(btrim(timezone)) BETWEEN 1 AND 120),
+    currency_code TEXT NOT NULL DEFAULT 'USD' CHECK (currency_code ~ '^[A-Z]{3}$'),
     business_hours JSONB NOT NULL,
     ai_instructions TEXT NOT NULL DEFAULT '' CHECK (char_length(ai_instructions) <= 4000),
     whatsapp_phone_number TEXT NOT NULL DEFAULT '' CHECK (char_length(whatsapp_phone_number) <= 16),

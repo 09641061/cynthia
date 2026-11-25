@@ -94,7 +94,7 @@ func TestMalformedPathIDReturns400(t *testing.T) {
 func TestCreateAndMoveService(t *testing.T) {
 	store := &fakeStore{}
 	categoryID, destinationID := newTestUUID(), newTestUUID()
-	body := `{"name":"Cut","duration_minutes":30,"price_minor_units":2500,"currency_code":"USD","sort_order":1}`
+	body := `{"name":"Cut","duration_minutes":30,"price_minor_units":2500,"sort_order":1}`
 	request := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/v1/catalog/categories/%s/services", categoryID), strings.NewReader(body))
 	request.Header.Set("Content-Type", "application/json")
 	recorder := httptest.NewRecorder()
@@ -114,7 +114,7 @@ func TestCreateAndMoveService(t *testing.T) {
 }
 
 func TestCreateServiceRejectsRemovedDescription(t *testing.T) {
-	request := httptest.NewRequest(http.MethodPost, "/v1/catalog/categories/"+newTestUUID()+"/services", strings.NewReader(`{"name":"Cut","description":"obsolete","duration_minutes":30,"currency_code":"USD"}`))
+	request := httptest.NewRequest(http.MethodPost, "/v1/catalog/categories/"+newTestUUID()+"/services", strings.NewReader(`{"name":"Cut","description":"obsolete","duration_minutes":30}`))
 	request.Header.Set("Content-Type", "application/json")
 	recorder := httptest.NewRecorder()
 	routerForTest(&fakeStore{}).ServeHTTP(recorder, request)
@@ -124,7 +124,7 @@ func TestCreateServiceRejectsRemovedDescription(t *testing.T) {
 }
 
 func TestCreateServiceRejectsInvalidDuration(t *testing.T) {
-	request := httptest.NewRequest(http.MethodPost, "/v1/catalog/categories/"+newTestUUID()+"/services", strings.NewReader(`{"name":"Cut","duration_minutes":0,"currency_code":"USD"}`))
+	request := httptest.NewRequest(http.MethodPost, "/v1/catalog/categories/"+newTestUUID()+"/services", strings.NewReader(`{"name":"Cut","duration_minutes":0}`))
 	request.Header.Set("Content-Type", "application/json")
 	recorder := httptest.NewRecorder()
 	routerForTest(&fakeStore{}).ServeHTTP(recorder, request)

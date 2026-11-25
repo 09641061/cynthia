@@ -10,8 +10,9 @@ import (
 func validBaseOrg() domain.Organization {
 	day := domain.DayHours{IsOpen: true, OpenTime: "09:00", CloseTime: "18:00"}
 	return domain.Organization{
-		Name:     "Acme Clinic",
-		Timezone: "UTC",
+		Name:         "Acme Clinic",
+		Timezone:     "UTC",
+		CurrencyCode: "USD",
 		BusinessHours: domain.BusinessHours{
 			Monday: day, Tuesday: day, Wednesday: day, Thursday: day,
 			Friday: day, Saturday: day, Sunday: day,

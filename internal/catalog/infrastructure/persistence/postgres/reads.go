@@ -54,7 +54,7 @@ func (s *Store) list(ctx context.Context) (categories []domain.Category, resultE
 
 func listServices(ctx context.Context, tx *sql.Tx, indexes map[string]int, categories []domain.Category) error {
 	rows, err := tx.QueryContext(ctx, `SELECT id, category_id, name, duration_minutes,
-		price_minor_units, currency_code, sort_order, version, created_at, updated_at
+		price_minor_units, sort_order, version, created_at, updated_at
 		FROM catalog_services ORDER BY category_id, sort_order`)
 	if err != nil {
 		return fmt.Errorf("list catalog services: %w", err)
@@ -62,7 +62,7 @@ func listServices(ctx context.Context, tx *sql.Tx, indexes map[string]int, categ
 	for rows.Next() {
 		var service domain.Service
 		if err := rows.Scan(&service.ID, &service.CategoryID, &service.Name,
-			&service.DurationMinute, &service.PriceMinor, &service.CurrencyCode, &service.SortOrder,
+			&service.DurationMinute, &service.PriceMinor, &service.SortOrder,
 			&service.Version, &service.CreatedAt, &service.UpdatedAt); err != nil {
 			return errors.Join(fmt.Errorf("scan catalog service: %w", err), rows.Close())
 		}
@@ -110,9 +110,9 @@ func (s *Store) getCategory(ctx context.Context, id string) (category domain.Cat
 func (s *Store) getService(ctx context.Context, id string) (domain.Service, error) {
 	var service domain.Service
 	err := s.db.QueryRowContext(ctx, `SELECT id, category_id, name, duration_minutes,
-		price_minor_units, currency_code, sort_order, version, created_at, updated_at
+		price_minor_units, sort_order, version, created_at, updated_at
 		FROM catalog_services WHERE id = $1`, id).Scan(&service.ID, &service.CategoryID, &service.Name,
-		&service.DurationMinute, &service.PriceMinor, &service.CurrencyCode,
+		&service.DurationMinute, &service.PriceMinor,
 		&service.SortOrder, &service.Version, &service.CreatedAt, &service.UpdatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return service, application.ErrNotFound

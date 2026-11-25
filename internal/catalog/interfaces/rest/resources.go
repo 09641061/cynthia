@@ -10,14 +10,12 @@ type serviceRequest struct {
 	Name           string `json:"name"`
 	DurationMinute int    `json:"duration_minutes"`
 	PriceMinor     int64  `json:"price_minor_units"`
-	CurrencyCode   string `json:"currency_code"`
 }
 
 type createServiceRequest struct {
 	Name           string `json:"name"`
 	DurationMinute int    `json:"duration_minutes"`
 	PriceMinor     int64  `json:"price_minor_units"`
-	CurrencyCode   string `json:"currency_code"`
 	SortOrder      int    `json:"sort_order"`
 }
 
@@ -33,13 +31,13 @@ type categoryPlacementRequest struct {
 func (r serviceRequest) service() domain.Service {
 	return domain.Service{
 		Name: r.Name, DurationMinute: r.DurationMinute,
-		PriceMinor: r.PriceMinor, CurrencyCode: r.CurrencyCode,
+		PriceMinor: r.PriceMinor,
 	}
 }
 
 func (r createServiceRequest) service() domain.Service {
 	return serviceRequest{
 		Name: r.Name, DurationMinute: r.DurationMinute,
-		PriceMinor: r.PriceMinor, CurrencyCode: r.CurrencyCode,
+		PriceMinor: r.PriceMinor,
 	}.service()
 }

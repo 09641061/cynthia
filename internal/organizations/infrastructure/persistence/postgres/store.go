@@ -26,7 +26,7 @@ func scanOrganization(row rowScanner) (domain.Organization, error) {
 	var org domain.Organization
 	var hoursJSON []byte
 	err := row.Scan(
-		&org.ID, &org.Name, &org.BusinessType, &org.ContactEmail, &org.Timezone,
+		&org.ID, &org.Name, &org.BusinessType, &org.ContactEmail, &org.Timezone, &org.CurrencyCode,
 		&hoursJSON, &org.AiInstructions,
 		&org.WhatsAppPhoneNumber, &org.WhatsAppPhoneNumberID, &org.WhatsAppEnabled,
 		&org.Version, &org.CreatedAt, &org.UpdatedAt,
@@ -44,7 +44,7 @@ func scanOrganization(row rowScanner) (domain.Organization, error) {
 }
 
 func (s *Store) get(ctx context.Context) (domain.Organization, error) {
-	row := s.db.QueryRowContext(ctx, `SELECT id, name, business_type, contact_email, timezone,
+	row := s.db.QueryRowContext(ctx, `SELECT id, name, business_type, contact_email, timezone, currency_code,
 		business_hours, ai_instructions, whatsapp_phone_number, whatsapp_phone_number_id,
 		whatsapp_enabled, version, created_at, updated_at
 		FROM organizations WHERE singleton_key = TRUE`)
@@ -61,7 +61,7 @@ func (s *Store) update(ctx context.Context, expectedVersion int64, patch domain.
 			resultErr = errors.Join(resultErr, fmt.Errorf("rollback organization transaction: %w", err))
 		}
 	}()
-	row := tx.QueryRowContext(ctx, `SELECT id, name, business_type, contact_email, timezone,
+	row := tx.QueryRowContext(ctx, `SELECT id, name, business_type, contact_email, timezone, currency_code,
 		business_hours, ai_instructions, whatsapp_phone_number, whatsapp_phone_number_id,
 		whatsapp_enabled, version, created_at, updated_at
 		FROM organizations WHERE singleton_key = TRUE FOR UPDATE`)
@@ -81,13 +81,13 @@ func (s *Store) update(ctx context.Context, expectedVersion int64, patch domain.
 		return domain.Organization{}, fmt.Errorf("marshal business hours: %w", err)
 	}
 	err = tx.QueryRowContext(ctx, `UPDATE organizations
-		SET name = $1, business_type = $2, contact_email = $3, timezone = $4,
-		    business_hours = $5, ai_instructions = $6,
-		    whatsapp_phone_number = $7, whatsapp_phone_number_id = $8, whatsapp_enabled = $9,
+		SET name = $1, business_type = $2, contact_email = $3, timezone = $4, currency_code = $5,
+		    business_hours = $6, ai_instructions = $7,
+		    whatsapp_phone_number = $8, whatsapp_phone_number_id = $9, whatsapp_enabled = $10,
 		    version = version + 1, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $10
+		WHERE id = $11
 		RETURNING version, updated_at`,
-		next.Name, next.BusinessType, next.ContactEmail, next.Timezone,
+		next.Name, next.BusinessType, next.ContactEmail, next.Timezone, next.CurrencyCode,
 		hoursJSON, next.AiInstructions,
 		next.WhatsAppPhoneNumber, next.WhatsAppPhoneNumberID, next.WhatsAppEnabled,
 		next.ID,

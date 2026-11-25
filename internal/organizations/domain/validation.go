@@ -8,6 +8,7 @@ import (
 )
 
 var (
+	currencyCodePattern   = regexp.MustCompile(`^[A-Z]{3}$`)
 	e164Pattern           = regexp.MustCompile(`^\+[1-9][0-9]{6,14}$`)
 	phoneNumberIDPattern  = regexp.MustCompile(`^[0-9]{1,64}$`)
 	whatsappPhoneReplacer = strings.NewReplacer(" ", "", "-", "", "(", "", ")", "")
@@ -40,6 +41,9 @@ func validateOrganization(org Organization) error {
 	}
 	if _, err := time.LoadLocation(org.Timezone); err != nil {
 		return InvalidFieldError{Field: "timezone", Reason: "must be a valid IANA timezone"}
+	}
+	if !currencyCodePattern.MatchString(org.CurrencyCode) {
+		return InvalidFieldError{Field: "currency_code", Reason: "must be three uppercase ASCII letters"}
 	}
 	if len([]rune(org.AiInstructions)) > 4000 {
 		return InvalidFieldError{Field: "ai_instructions", Reason: "must not exceed 4000 characters"}

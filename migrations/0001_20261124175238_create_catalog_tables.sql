@@ -18,7 +18,6 @@ CREATE TABLE IF NOT EXISTS catalog_services (
     name TEXT NOT NULL CHECK (char_length(btrim(name)) BETWEEN 1 AND 120),
     duration_minutes INTEGER NOT NULL CHECK (duration_minutes BETWEEN 1 AND 1440),
     price_minor_units BIGINT NOT NULL CHECK (price_minor_units >= 0),
-    currency_code TEXT NOT NULL CHECK (currency_code ~ '^[A-Z]{3}$'),
     sort_order INTEGER NOT NULL CHECK (sort_order > 0),
     version BIGINT NOT NULL DEFAULT 1 CHECK (version > 0),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,

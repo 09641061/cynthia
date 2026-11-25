@@ -82,7 +82,7 @@ func seedRefs(t *testing.T, ctx context.Context, db *sql.DB) seededRefs {
 		{`INSERT INTO calendar_people (id, name, active) VALUES ($1, 'Lucia', true), ($2, 'Elena', true)`, []any{refs.personA, refs.personB}},
 		{`INSERT INTO crm_customers (id, name, phone) VALUES ($1, 'Ana', '+573001112233')`, []any{refs.customerID}},
 		{`INSERT INTO catalog_categories (id, name, sort_order) VALUES ($1, 'Hair', 1)`, []any{catID}},
-		{`INSERT INTO catalog_services (id, category_id, name, duration_minutes, price_minor_units, currency_code, sort_order) VALUES ($1, $2, 'Cut', 30, 50000, 'COP', 1)`, []any{refs.serviceID, catID}},
+		{`INSERT INTO catalog_services (id, category_id, name, duration_minutes, price_minor_units, sort_order) VALUES ($1, $2, 'Cut', 30, 50000, 1)`, []any{refs.serviceID, catID}},
 	}
 	for _, q := range queries {
 		if _, err := db.ExecContext(ctx, q.sql, q.args...); err != nil {

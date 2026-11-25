@@ -71,7 +71,7 @@ func (c *Catalog) MoveCategory(ctx context.Context, id string, position int, ver
 
 // CreateService adds a service to the selected category.
 func (c *Catalog) CreateService(ctx context.Context, categoryID string, service domain.Service, position int) (domain.Service, error) {
-	if err := domain.ValidateService(service.Name, service.DurationMinute, service.PriceMinor, service.CurrencyCode); err != nil {
+	if err := domain.ValidateService(service.Name, service.DurationMinute, service.PriceMinor); err != nil {
 		return domain.Service{}, err
 	}
 	return c.store.CreateService(ctx, categoryID, service, position)
@@ -79,7 +79,7 @@ func (c *Catalog) CreateService(ctx context.Context, categoryID string, service 
 
 // UpdateService changes service details if its version is current.
 func (c *Catalog) UpdateService(ctx context.Context, id string, service domain.Service, version int64) (domain.Service, error) {
-	if err := domain.ValidateService(service.Name, service.DurationMinute, service.PriceMinor, service.CurrencyCode); err != nil {
+	if err := domain.ValidateService(service.Name, service.DurationMinute, service.PriceMinor); err != nil {
 		return domain.Service{}, err
 	}
 	return c.store.UpdateService(ctx, id, service, version)
