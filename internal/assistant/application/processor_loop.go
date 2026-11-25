@@ -1,0 +1,105 @@
+package application
+
+import (
+	"context"
+	"errors"
+	"strings"
+	"time"
+
+	"go-service/internal/assistant/domain"
+)
+
+func (p *Processor) generateReply(ctx context.Context, orgCfg OrgConfig, conv Conversation) (string, bool, bool, error) {
+	msgs, err := p.crm.ListRecentMessages(ctx, conv.ID, domain.MaxHistoryMessages)
+	if err != nil {
+		return "", false, false, err
+	}
+	history := make([]domain.HistoryMessage, 0, len(msgs))
+	hasPriorAssistantTurn := false
+	for _, m := range msgs {
+		if m.Direction == "outbound" {
+			hasPriorAssistantTurn = true
+		}
+		history = append(history, domain.HistoryMessage{Direction: m.Direction, Body: m.Content})
+	}
+	promptCfg := domain.PromptConfig{
+		Timezone:       orgCfg.Timezone,
+		BusinessHours:  orgCfg.BusinessHours,
+		AiInstructions: orgCfg.AiInstructions,
+		Now:            p.now(),
+	}
+	chatMsgs := domain.BuildMessages(promptCfg, history)
+	tools := AllToolDefinitions()
+	exec := NewToolExecutor(p.crm, p.catalog, p.calendar, conv, hasPriorAssistantTurn)
+
+	for round := 0; round < domain.MaxToolRounds; round++ {
+		res, err := p.llm.Complete(ctx, chatMsgs, tools)
+		if err != nil {
+			return "", false, false, err
+		}
+		if len(res.ToolCalls) == 0 {
+			text := strings.TrimSpace(res.Content)
+			if text != "" {
+				return text, exec.HandedOff(), exec.MutatedOrHandedOff(), nil
+			}
+			break
+		}
+		chatMsgs = append(chatMsgs, domain.ChatMessage{
+			Role:      "assistant",
+			Content:   res.Content,
+			ToolCalls: res.ToolCalls,
+		})
+		for _, call := range res.ToolCalls {
+			result := exec.Execute(ctx, call)
+			chatMsgs = append(chatMsgs, domain.ChatMessage{
+				Role:       "tool",
+				ToolCallID: call.ID,
+				Content:    result,
+			})
+		}
+	}
+
+	_ = p.crm.PauseForHandoff(ctx, conv.ID, "max_tool_rounds_exceeded")
+	return FallbackReplyText, true, true, nil
+}
+
+func retryBackoff(attempts int) time.Duration {
+	if attempts <= 1 {
+		return baseRetryBackoff
+	}
+	d := baseRetryBackoff << min(attempts-1, 6)
+	if d > maxRetryBackoff {
+		return maxRetryBackoff
+	}
+	return d
+}
+
+func sanitizeErr(err error) string {
+	if err == nil {
+		return ""
+	}
+	s := strings.TrimSpace(err.Error())
+	runes := []rune(s)
+	if len(runes) > maxErrorRunes {
+		return string(runes[:maxErrorRunes])
+	}
+	return s
+}
+
+func (p *Processor) deliverReply(ctx context.Context, job Job, replyText string) error {
+	_, err := p.crm.SendAssistantReply(ctx, job.ConversationID, "ai:"+job.TriggerMessageID, replyText)
+	if err == nil {
+		return p.jobs.Complete(ctx, job.ID)
+	}
+	switch {
+	case errors.Is(err, ErrConversationClosed):
+		return p.jobs.Complete(ctx, job.ID)
+	case errors.Is(err, ErrDeliveryFailed):
+		_ = p.crm.PauseForHandoff(ctx, job.ConversationID, "assistant_delivery_failed")
+		return p.jobs.FailOrRetry(ctx, job.ID, job.ConversationID, sanitizeErr(err), false, 0)
+	case errors.Is(err, ErrDeliveryUncertain):
+		return p.jobs.FailOrRetry(ctx, job.ID, job.ConversationID, sanitizeErr(err), false, 0)
+	default:
+		return p.jobs.FailOrRetry(ctx, job.ID, job.ConversationID, sanitizeErr(err), true, retryBackoff(job.Attempts))
+	}
+}

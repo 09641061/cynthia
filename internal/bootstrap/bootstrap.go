@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
+	"sync"
 	"time"
 
 	"go-service/internal/bootstrap/config"
@@ -36,7 +38,21 @@ func Run(ctx context.Context) (resultErr error) {
 	if err != nil {
 		return fmt.Errorf("configure PostgreSQL circuit breaker: %w", err)
 	}
-	router := newRouter(postgres.NewClient(db, breaker))
+	client := postgres.NewClient(db, breaker)
+	router, startWorker := newApp(client, cfg)
+	if client != nil && strings.TrimSpace(cfg.DeepSeekAPIKey) != "" {
+		workerCtx, cancelWorker := context.WithCancel(ctx)
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			startWorker(workerCtx)
+		}()
+		defer func() {
+			cancelWorker()
+			wg.Wait()
+		}()
+	}
 	server := &http.Server{Addr: ":" + cfg.Port, Handler: router, ReadHeaderTimeout: cfg.ReadHeaderTimeout}
 	return serve(ctx, server, cfg.ShutdownTimeout)
 }

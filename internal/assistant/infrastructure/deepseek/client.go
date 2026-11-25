@@ -32,6 +32,11 @@ func (e *APIError) Error() string {
 	return fmt.Sprintf("deepseek error (status=%d retryable=%t): %s", e.StatusCode, e.Retryable, e.Message)
 }
 
+// IsRetryable reports whether this APIError is retryable.
+func (e *APIError) IsRetryable() bool {
+	return e != nil && e.Retryable
+}
+
 // IsRetryable reports whether err is a retryable DeepSeek failure.
 func IsRetryable(err error) bool {
 	var apiErr *APIError

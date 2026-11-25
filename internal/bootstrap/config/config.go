@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -20,6 +21,7 @@ type Config struct {
 	DeepSeekAPIKey    string
 	DeepSeekBaseURL   string
 	DeepSeekModel     string
+	AssistantWorkers  int
 }
 
 func Load() (Config, error) {
@@ -42,6 +44,7 @@ func Load() (Config, error) {
 		DeepSeekAPIKey:    os.Getenv("DEEPSEEK_API_KEY"),
 		DeepSeekBaseURL:   envOrDefault("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
 		DeepSeekModel:     envOrDefault("DEEPSEEK_MODEL", "deepseek-chat"),
+		AssistantWorkers:  envIntOrDefault("ASSISTANT_WORKERS", 2, 1),
 	}, nil
 }
 
@@ -50,6 +53,21 @@ func envOrDefault(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func envIntOrDefault(key string, fallback, minVal int) int {
+	raw := os.Getenv(key)
+	if raw == "" {
+		return fallback
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil {
+		return fallback
+	}
+	if n < minVal {
+		return minVal
+	}
+	return n
 }
 
 // ConfigFromEnv builds a PostgreSQL URL from the process environment.
