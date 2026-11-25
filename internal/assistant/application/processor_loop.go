@@ -86,20 +86,38 @@ func sanitizeErr(err error) string {
 	return s
 }
 
+func persistCtx(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+}
+
+func (p *Processor) complete(ctx context.Context, jobID string) error {
+	pCtx, cancel := persistCtx(ctx)
+	defer cancel()
+	return p.jobs.Complete(pCtx, jobID)
+}
+
+func (p *Processor) failOrRetry(ctx context.Context, job Job, err error, retryable bool, backoff time.Duration) error {
+	pCtx, cancel := persistCtx(ctx)
+	defer cancel()
+	return p.jobs.FailOrRetry(pCtx, job.ID, job.ConversationID, sanitizeErr(err), retryable, backoff)
+}
+
 func (p *Processor) deliverReply(ctx context.Context, job Job, replyText string) error {
 	_, err := p.crm.SendAssistantReply(ctx, job.ConversationID, "ai:"+job.TriggerMessageID, replyText)
 	if err == nil {
-		return p.jobs.Complete(ctx, job.ID)
+		return p.complete(ctx, job.ID)
 	}
 	switch {
 	case errors.Is(err, ErrConversationClosed):
-		return p.jobs.Complete(ctx, job.ID)
+		return p.complete(ctx, job.ID)
 	case errors.Is(err, ErrDeliveryFailed):
-		_ = p.crm.PauseForHandoff(ctx, job.ConversationID, "assistant_delivery_failed")
-		return p.jobs.FailOrRetry(ctx, job.ID, job.ConversationID, sanitizeErr(err), false, 0)
+		pCtx, cancel := persistCtx(ctx)
+		defer cancel()
+		_ = p.crm.PauseForHandoff(pCtx, job.ConversationID, "assistant_delivery_failed")
+		return p.jobs.FailOrRetry(pCtx, job.ID, job.ConversationID, sanitizeErr(err), false, 0)
 	case errors.Is(err, ErrDeliveryUncertain):
-		return p.jobs.FailOrRetry(ctx, job.ID, job.ConversationID, sanitizeErr(err), false, 0)
+		return p.failOrRetry(ctx, job, err, false, 0)
 	default:
-		return p.jobs.FailOrRetry(ctx, job.ID, job.ConversationID, sanitizeErr(err), true, retryBackoff(job.Attempts))
+		return p.failOrRetry(ctx, job, err, true, retryBackoff(job.Attempts))
 	}
 }

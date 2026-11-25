@@ -21,11 +21,13 @@ func newRouter(db *postgres.Client) *gin.Engine {
 func newApp(db *postgres.Client, cfg config.Config) (*gin.Engine, func(context.Context)) {
 	router := gin.Default()
 	catalog.NewModule(db, router)
-	var inboundHook *assistant.InboundEnqueuer
+	waReader := organizations.NewWhatsAppConfigReader(db)
+	var crmGateway *crm.AssistantCRMGateway
 	if db != nil {
-		inboundHook = assistant.NewInboundHook(db)
+		crmGateway = crm.NewModule(db, router, waReader, assistant.NewInboundHook(db))
+	} else {
+		crmGateway = crm.NewModule(db, router, waReader, nil)
 	}
-	crmGateway := crm.NewModule(db, router, organizations.NewWhatsAppConfigReader(db), inboundHook)
 	organizations.NewModule(db, router)
 	serviceReader := catalog.NewServiceReader(db)
 	scheduleReader := organizations.NewScheduleReader(db)

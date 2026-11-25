@@ -24,17 +24,31 @@ func (s *JobStore) Enqueue(ctx context.Context, convID, triggerMsgID string, deb
 	if s == nil || s.db == nil {
 		return nil
 	}
-	_, err := s.db.ExecContext(ctx, `
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtext($1))`, convID); err != nil {
+		return err
+	}
+	_, err = tx.ExecContext(ctx, `
 		INSERT INTO assistant_jobs (id, conversation_id, trigger_message_id, status, run_after)
 		VALUES ($1, $2, $3, 'pending', NOW() + $4 * INTERVAL '1 millisecond')
 		ON CONFLICT (conversation_id) WHERE status = 'pending'
 		DO UPDATE SET
 			trigger_message_id = EXCLUDED.trigger_message_id,
 			run_after = EXCLUDED.run_after,
+			reply_text = '',
+			attempts = 0,
+			last_error = '',
 			updated_at = CURRENT_TIMESTAMP`,
 		uuid.NewString(), convID, triggerMsgID, debounce.Milliseconds(),
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // HasPendingForConversation reports whether another pending job exists for convID.
@@ -57,7 +71,7 @@ func (s *JobStore) CountRecentCompleted(ctx context.Context, convID string, sinc
 	}
 	var count int
 	err := s.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM assistant_jobs WHERE conversation_id = $1 AND status = 'done' AND updated_at >= $2`,
+		`SELECT COUNT(*) FROM assistant_jobs WHERE conversation_id = $1 AND status = 'done' AND reply_text <> '' AND last_error <> 'superseded' AND updated_at >= $2`,
 		convID, since.UTC(),
 	).Scan(&count)
 	return count, err
@@ -120,28 +134,4 @@ func (s *JobStore) FailOrRetry(ctx context.Context, jobID, convID, sanitizedErr 
 		return err
 	}
 	return tx.Commit()
-}
-
-func requeueOrSupersede(ctx context.Context, tx *sql.Tx, jobID, convID, sanitizedErr string, backoff time.Duration) error {
-	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtext($1))`, convID); err != nil {
-		return err
-	}
-	var hasPending bool
-	if err := tx.QueryRowContext(ctx,
-		`SELECT EXISTS (SELECT 1 FROM assistant_jobs WHERE conversation_id = $1 AND status = 'pending')`, convID,
-	).Scan(&hasPending); err != nil {
-		return err
-	}
-	if hasPending {
-		_, err := tx.ExecContext(ctx,
-			`UPDATE assistant_jobs SET status = 'done', locked_until = NULL, last_error = 'superseded', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
-			jobID,
-		)
-		return err
-	}
-	_, err := tx.ExecContext(ctx,
-		`UPDATE assistant_jobs SET status = 'pending', locked_until = NULL, run_after = NOW() + $3 * INTERVAL '1 millisecond', last_error = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
-		jobID, sanitizedErr, backoff.Milliseconds(),
-	)
-	return err
 }

@@ -114,3 +114,31 @@ func TestToolExecutorHandoffToHuman(t *testing.T) {
 		t.Fatalf("unexpected handoff result: out=%s reason=%s handedOff=%v", out, crm.handoffReason, exec.HandedOff())
 	}
 }
+
+func TestToolExecutorReadToolsRescheduleAndUnconfirmed(t *testing.T) {
+	conv := application.Conversation{ID: "c1", CustomerID: "cust-1"}
+	cal := &stubCalendar{}
+	exec := application.NewToolExecutor(&stubCRM{}, stubCatalog{}, cal, conv, true)
+
+	out := exec.Execute(context.Background(), domain.ToolCall{
+		ID: "u1", Function: domain.ToolCallFunction{Name: "reschedule_appointment", Arguments: `{"appointment_id":"apt-1","start_at":"2026-12-02T15:00:00Z","confirmed_by_customer":false}`},
+	})
+	if !strings.Contains(out, "confirmation_required") {
+		t.Fatalf("expected confirmation_required for unconfirmed reschedule, got %s", out)
+	}
+	out = exec.Execute(context.Background(), domain.ToolCall{
+		ID: "r1", Function: domain.ToolCallFunction{Name: "reschedule_appointment", Arguments: `{"appointment_id":"apt-1","start_at":"2026-12-02T15:00:00Z","confirmed_by_customer":true}`},
+	})
+	if !strings.Contains(out, `"apt-1"`) || cal.lastCustomerID != "cust-1" {
+		t.Fatalf("unexpected reschedule output: %s", out)
+	}
+	slotsOut := exec.Execute(context.Background(), domain.ToolCall{
+		ID: "s1", Function: domain.ToolCallFunction{Name: "get_available_slots", Arguments: `{"date":"2026-12-02","service_id":"svc-1"}`},
+	})
+	aptsOut := exec.Execute(context.Background(), domain.ToolCall{
+		ID: "l1", Function: domain.ToolCallFunction{Name: "list_my_appointments", Arguments: `{}`},
+	})
+	if !strings.Contains(slotsOut, "Ana") || !strings.Contains(aptsOut, "apt-1") {
+		t.Fatalf("unexpected read tool outputs: slots=%s apts=%s", slotsOut, aptsOut)
+	}
+}

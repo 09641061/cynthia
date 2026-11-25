@@ -69,3 +69,27 @@ func (s *JobStore) ClaimNext(ctx context.Context, lease time.Duration) (applicat
 	job.Attempts++
 	return job, true, nil
 }
+
+func requeueOrSupersede(ctx context.Context, tx *sql.Tx, jobID, convID, sanitizedErr string, backoff time.Duration) error {
+	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtext($1))`, convID); err != nil {
+		return err
+	}
+	var hasPending bool
+	if err := tx.QueryRowContext(ctx,
+		`SELECT EXISTS (SELECT 1 FROM assistant_jobs WHERE conversation_id = $1 AND status = 'pending')`, convID,
+	).Scan(&hasPending); err != nil {
+		return err
+	}
+	if hasPending {
+		_, err := tx.ExecContext(ctx,
+			`UPDATE assistant_jobs SET status = 'done', locked_until = NULL, last_error = 'superseded', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+			jobID,
+		)
+		return err
+	}
+	_, err := tx.ExecContext(ctx,
+		`UPDATE assistant_jobs SET status = 'pending', locked_until = NULL, run_after = NOW() + $3 * INTERVAL '1 millisecond', last_error = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+		jobID, sanitizedErr, backoff.Milliseconds(),
+	)
+	return err
+}

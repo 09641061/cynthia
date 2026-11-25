@@ -37,3 +37,27 @@ func TestLoadServerAndMigrationDefaults(t *testing.T) {
 		t.Fatalf("unexpected deepseek configuration: %+v", cfg)
 	}
 }
+
+func TestLoadAssistantWorkers(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://database.example/test")
+	cases := []struct {
+		env  string
+		want int
+	}{
+		{"", 2},
+		{"4", 4},
+		{"0", 1},
+		{"-3", 1},
+		{"not-a-number", 2},
+	}
+	for _, tc := range cases {
+		t.Setenv("ASSISTANT_WORKERS", tc.env)
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("env=%q: %v", tc.env, err)
+		}
+		if cfg.AssistantWorkers != tc.want {
+			t.Fatalf("env=%q: got %d, want %d", tc.env, cfg.AssistantWorkers, tc.want)
+		}
+	}
+}

@@ -89,3 +89,45 @@ func TestJobStoreSkipLockedAndStaleLeaseRecovery(t *testing.T) {
 		t.Fatalf("expected failed/lease_expired, got %s/%s", status, lastErr)
 	}
 }
+
+func TestJobStoreFailOrRetryRequeueAndCountRecentCompleted(t *testing.T) {
+	client, seed := newTestClient(t)
+	store := postgres.NewJobStore(client.DB)
+	ctx := t.Context()
+
+	// 1. FailOrRetry with no pending job re-queues to status='pending' with backoff.
+	if err := store.Enqueue(ctx, seed.convID, uuid.NewString(), 0); err != nil {
+		t.Fatalf("enqueue: %v", err)
+	}
+	job, ok, err := store.ClaimNext(ctx, 2*time.Minute)
+	if err != nil || !ok {
+		t.Fatalf("claim: ok=%v err=%v", ok, err)
+	}
+	if err := store.FailOrRetry(ctx, job.ID, seed.convID, "temporary", true, 30*time.Second); err != nil {
+		t.Fatalf("fail or retry requeue: %v", err)
+	}
+	var status, lastErr string
+	_ = client.DB.QueryRowContext(ctx, `SELECT status, last_error FROM assistant_jobs WHERE id = $1`, job.ID).Scan(&status, &lastErr)
+	if status != "pending" || lastErr != "temporary" {
+		t.Fatalf("expected pending/temporary, got %s/%s", status, lastErr)
+	}
+
+	// 2. CountRecentCompleted counts only done rows with non-empty reply_text and last_error != 'superseded'.
+	since := time.Now().UTC().Add(-time.Hour)
+	_, err = client.DB.ExecContext(ctx, `
+		INSERT INTO assistant_jobs (id, conversation_id, trigger_message_id, status, run_after, reply_text, last_error) VALUES
+		($1, $2, $3, 'done', NOW(), 'real reply', ''),
+		($4, $2, $5, 'done', NOW(), '', ''),
+		($6, $2, $7, 'done', NOW(), 'old reply', 'superseded')`,
+		uuid.NewString(), seed.convID, uuid.NewString(),
+		uuid.NewString(), uuid.NewString(),
+		uuid.NewString(), uuid.NewString(),
+	)
+	if err != nil {
+		t.Fatalf("seed completed jobs: %v", err)
+	}
+	count, err := store.CountRecentCompleted(ctx, seed.convID, since)
+	if err != nil || count != 1 {
+		t.Fatalf("expected CountRecentCompleted=1, got %d (err=%v)", count, err)
+	}
+}

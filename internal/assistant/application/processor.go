@@ -56,20 +56,20 @@ func (p *Processor) Process(ctx context.Context, job Job) error {
 
 	orgCfg, conv, ok, err := p.loadAndCheckGates(ctx, job)
 	if err != nil {
-		return p.jobs.FailOrRetry(ctx, job.ID, job.ConversationID, sanitizeErr(err), true, retryBackoff(job.Attempts))
+		return p.failOrRetry(ctx, job, err, true, retryBackoff(job.Attempts))
 	}
 	if !ok {
-		return p.jobs.Complete(ctx, job.ID)
+		return p.complete(ctx, job.ID)
 	}
 
 	recentCount, err := p.jobs.CountRecentCompleted(ctx, job.ConversationID, p.now().Add(-rateLimitWindow))
 	if err != nil {
-		return p.jobs.FailOrRetry(ctx, job.ID, job.ConversationID, sanitizeErr(err), true, retryBackoff(job.Attempts))
+		return p.failOrRetry(ctx, job, err, true, retryBackoff(job.Attempts))
 	}
 	if recentCount >= maxRecentCompleted {
 		_ = p.crm.PauseForHandoff(ctx, job.ConversationID, "rate_limit_exceeded")
 		_, _ = p.crm.SendAssistantReply(ctx, job.ConversationID, "ai:"+job.TriggerMessageID, FallbackReplyText)
-		return p.jobs.Complete(ctx, job.ID)
+		return p.complete(ctx, job.ID)
 	}
 
 	replyText := strings.TrimSpace(job.ReplyText)
@@ -82,19 +82,19 @@ func (p *Processor) Process(ctx context.Context, job Job) error {
 			if retryable {
 				backoff = retryBackoff(job.Attempts)
 			}
-			return p.jobs.FailOrRetry(ctx, job.ID, job.ConversationID, sanitizeErr(err), retryable, backoff)
+			return p.failOrRetry(ctx, job, err, retryable, backoff)
 		}
 		if err := p.jobs.SaveReply(ctx, job.ID, replyText); err != nil {
-			return p.jobs.FailOrRetry(ctx, job.ID, job.ConversationID, sanitizeErr(err), true, retryBackoff(job.Attempts))
+			return p.failOrRetry(ctx, job, err, true, retryBackoff(job.Attempts))
 		}
 	}
 
 	canSend, err := p.canDeliver(ctx, job.ConversationID, handedOff, mutatedOrHandedOff)
 	if err != nil {
-		return p.jobs.FailOrRetry(ctx, job.ID, job.ConversationID, sanitizeErr(err), true, retryBackoff(job.Attempts))
+		return p.failOrRetry(ctx, job, err, true, retryBackoff(job.Attempts))
 	}
 	if !canSend {
-		return p.jobs.Complete(ctx, job.ID)
+		return p.complete(ctx, job.ID)
 	}
 	return p.deliverReply(ctx, job, replyText)
 }
@@ -121,7 +121,7 @@ func (p *Processor) canDeliver(ctx context.Context, convID string, handedOff, mu
 	if err != nil {
 		return false, err
 	}
-	if !(orgCfg.AiEnabled && (!conv.AiPaused || handedOff)) {
+	if !(orgCfg.AiEnabled && orgCfg.WhatsAppEnabled && (!conv.AiPaused || handedOff) && conv.Status == "open") {
 		return false, nil
 	}
 	if !mutatedOrHandedOff {
