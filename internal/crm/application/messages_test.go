@@ -21,17 +21,23 @@ func TestSendOutboundIdempotencyReplayStatuses(t *testing.T) {
 		return application.NewMessageService(st, st, st, st, nil, stubCfg{phone: "p1", enabled: true}), st
 	}
 	for _, status := range []string{domain.MessageStatusFailed, domain.MessageStatusUncertain} {
-		svc, _ := base(status)
+		svc, st := base(status)
 		var dErr application.DeliveryError
 		if _, err := svc.SendOutbound(context.Background(), convID, "k1", "hi"); !errors.As(err, &dErr) {
 			t.Fatalf("status=%s: expected DeliveryError, got %v", status, err)
 		}
+		if st.pausedCalled {
+			t.Fatalf("status=%s: expected failed replay not to pause AI", status)
+		}
 	}
-	svc, _ := base(domain.MessageStatusPending)
+	svc, st := base(domain.MessageStatusPending)
 	if _, err := svc.SendOutbound(context.Background(), convID, "k1", "hi"); !errors.Is(err, application.ErrConflict) {
 		t.Fatalf("status=pending: expected ErrConflict, got %v", err)
 	}
-	svc, st := base(domain.MessageStatusSent)
+	if st.pausedCalled {
+		t.Fatalf("status=pending: expected conflict not to pause AI")
+	}
+	svc, st = base(domain.MessageStatusSent)
 	if msg, err := svc.SendOutbound(context.Background(), convID, "k1", "hi"); err != nil || msg.Status != domain.MessageStatusSent {
 		t.Fatalf("status=sent: expected (sent, nil), got (%+v, %v)", msg, err)
 	}
@@ -51,11 +57,17 @@ func TestSendOutboundConfigErrorsAndWithoutCancelPersist(t *testing.T) {
 	if _, err := svc.SendOutbound(context.Background(), convID, "k1", "hi"); !errors.Is(err, cfgErr) {
 		t.Fatalf("expected configReader error to propagate, got %v", err)
 	}
+	if st.pausedCalled {
+		t.Fatalf("expected configReader error not to pause AI")
+	}
 	t.Setenv("WHATSAPP_PHONE_NUMBER_ID", "env-phone")
 	svc = application.NewMessageService(st, st, st, st, nil, stubCfg{phone: "p1", enabled: false})
 	var dErr application.DeliveryError
 	if _, err := svc.SendOutbound(context.Background(), convID, "k2", "hi"); !errors.As(err, &dErr) {
 		t.Fatalf("expected disabled config to stay disabled, got %v", err)
+	}
+	if st.pausedCalled {
+		t.Fatalf("expected failed delivery not to pause AI")
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	svc = application.NewMessageService(st, st, st, st, cancelOnSendSender{cancel: cancel}, stubCfg{phone: "p1", enabled: true})

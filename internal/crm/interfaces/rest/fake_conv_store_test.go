@@ -18,7 +18,10 @@ type stubConvStore struct {
 func (s *stubConvStore) ListConversations(context.Context, application.ConversationFilter) ([]domain.Conversation, int, error) {
 	return []domain.Conversation{s.conv}, 1, nil
 }
-func (s *stubConvStore) GetConversation(context.Context, string) (domain.Conversation, error) {
+func (s *stubConvStore) GetConversation(_ context.Context, id string) (domain.Conversation, error) {
+	if s.conv.ID != "" && id != s.conv.ID {
+		return domain.Conversation{}, application.ErrNotFound
+	}
 	return s.conv, nil
 }
 func (s *stubConvStore) UpdateConversationStatus(_ context.Context, _ string, expected int64, status string) (domain.Conversation, error) {

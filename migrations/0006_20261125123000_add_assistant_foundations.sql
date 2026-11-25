@@ -1,3 +1,6 @@
+SET LOCAL lock_timeout = '2s';
+SET LOCAL statement_timeout = '10s';
+
 ALTER TABLE organizations
     ADD COLUMN IF NOT EXISTS ai_enabled BOOLEAN NOT NULL DEFAULT FALSE;
 

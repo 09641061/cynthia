@@ -36,5 +36,6 @@ func NewModule(
 		broker:        broker,
 		conversations: conversations,
 		messages:      messages,
+		hasDB:         sqlDB != nil,
 	}
 }

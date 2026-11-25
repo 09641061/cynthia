@@ -56,6 +56,11 @@ func runIntegrationTests(m *testing.M) int {
 
 func newTestOrgStore(t *testing.T) *orgpostgres.Store {
 	t.Helper()
+	return orgpostgres.NewStore(newTestOrgClient(t))
+}
+
+func newTestOrgClient(t *testing.T) *sharedpostgres.Client {
+	t.Helper()
 	parsed, err := url.Parse(testDatabaseURL)
 	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
 		t.Fatal("Testcontainers did not provide a PostgreSQL connection URL")
@@ -95,5 +100,5 @@ func newTestOrgStore(t *testing.T) *orgpostgres.Store {
 	if err != nil {
 		t.Fatalf("configure circuit breaker: %v", err)
 	}
-	return orgpostgres.NewStore(sharedpostgres.NewClient(db, breaker))
+	return sharedpostgres.NewClient(db, breaker)
 }

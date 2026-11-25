@@ -48,6 +48,12 @@ func TestConversationAIAndReopenReset(t *testing.T) {
 		t.Fatalf("expected paused conversation, got (%+v, %v)", conv, err)
 	}
 
+	// open -> open preserves ai_paused and handoff_reason.
+	conv, err = store.UpdateConversationStatus(ctx, conv.ID, conv.Version, domain.ConversationStatusOpen)
+	if err != nil || !conv.AiPaused || conv.HandoffReason != "manual_pause" {
+		t.Fatalf("expected open -> open to preserve AI state, got (%+v, %v)", conv, err)
+	}
+
 	// Close then reopen via UpdateConversationStatus -> resets ai_paused and handoff_reason.
 	conv, err = store.UpdateConversationStatus(ctx, conv.ID, conv.Version, domain.ConversationStatusClosed)
 	if err != nil || !conv.AiPaused {

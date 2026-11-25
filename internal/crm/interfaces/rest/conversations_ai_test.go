@@ -47,6 +47,14 @@ func TestPatchConversationAIRoute(t *testing.T) {
 	if rec := patchAI(`"v1"`, `{}`); rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400 on missing ai_paused, got %d", rec.Code)
 	}
+	notFoundReq := httptest.NewRequest(http.MethodPatch, "/v1/conversations/"+uuid.NewString()+"/ai", bytes.NewBufferString(`{"ai_paused":true}`))
+	notFoundReq.Header.Set("Content-Type", "application/json")
+	notFoundReq.Header.Set("If-Match", `"v1"`)
+	notFoundRec := httptest.NewRecorder()
+	r.ServeHTTP(notFoundRec, notFoundReq)
+	if notFoundRec.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 on unknown conversation ID, got %d", notFoundRec.Code)
+	}
 
 	rec := patchAI(`"v1"`, `{"ai_paused":true}`)
 	if rec.Code != http.StatusOK || rec.Header().Get("ETag") != `"v2"` {
@@ -60,16 +68,25 @@ func TestPatchConversationAIRoute(t *testing.T) {
 		t.Fatalf("unexpected pause body: %v %+v", err, got)
 	}
 
-	rec = patchAI(`"v2"`, `{"ai_paused":false}`)
+	cs.conv.HandoffReason = "staff_replied"
+	rec = patchAI(`"v2"`, `{"ai_paused":true}`)
 	if rec.Code != http.StatusOK || rec.Header().Get("ETag") != `"v3"` {
 		t.Fatalf("expected 200 ETag v3, got %d %q", rec.Code, rec.Header().Get("ETag"))
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil || !got.AiPaused || got.HandoffReason != "staff_replied" {
+		t.Fatalf("expected existing handoff_reason preserved, got %v %+v", err, got)
+	}
+
+	rec = patchAI(`"v3"`, `{"ai_paused":false}`)
+	if rec.Code != http.StatusOK || rec.Header().Get("ETag") != `"v4"` {
+		t.Fatalf("expected 200 ETag v4, got %d %q", rec.Code, rec.Header().Get("ETag"))
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil || got.AiPaused || got.HandoffReason != "" {
 		t.Fatalf("unexpected resume body: %v %+v", err, got)
 	}
 
 	cs.conv.Status = domain.ConversationStatusClosed
-	if rec := patchAI(`"v3"`, `{"ai_paused":true}`); rec.Code != http.StatusConflict {
+	if rec := patchAI(`"v4"`, `{"ai_paused":true}`); rec.Code != http.StatusConflict {
 		t.Fatalf("expected 409 on closed conversation, got %d", rec.Code)
 	}
 }
