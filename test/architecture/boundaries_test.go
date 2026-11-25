@@ -11,6 +11,7 @@ func TestModuleDependencyBoundaries(t *testing.T) {
 	checkModuleBoundaries(t, "../../internal/crm/...", []string{"/internal/catalog", "/internal/organizations", "/internal/calendar", "/internal/assistant"})
 	checkModuleBoundaries(t, "../../internal/organizations/...", []string{"/internal/catalog", "/internal/crm", "/internal/calendar", "/internal/assistant"})
 	checkModuleBoundaries(t, "../../internal/calendar/...", []string{"/internal/catalog", "/internal/crm", "/internal/organizations", "/internal/assistant"})
+	checkModuleBoundaries(t, "../../internal/assistant/...", []string{"/internal/catalog", "/internal/crm", "/internal/organizations", "/internal/calendar"})
 }
 
 func checkModuleBoundaries(t *testing.T, pattern string, forbiddenModules []string) {

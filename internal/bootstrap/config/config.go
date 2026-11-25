@@ -17,6 +17,9 @@ type Config struct {
 	StartupTimeout    time.Duration
 	ShutdownTimeout   time.Duration
 	ReadHeaderTimeout time.Duration
+	DeepSeekAPIKey    string
+	DeepSeekBaseURL   string
+	DeepSeekModel     string
 }
 
 func Load() (Config, error) {
@@ -27,15 +30,26 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "3000"
+	port := envOrDefault("PORT", "3000")
+	dir := envOrDefault("MIGRATIONS_DIR", "migrations")
+	return Config{
+		DatabaseURL:       databaseURL,
+		Port:              port,
+		MigrationsDir:     dir,
+		StartupTimeout:    10 * time.Second,
+		ShutdownTimeout:   10 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second,
+		DeepSeekAPIKey:    os.Getenv("DEEPSEEK_API_KEY"),
+		DeepSeekBaseURL:   envOrDefault("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
+		DeepSeekModel:     envOrDefault("DEEPSEEK_MODEL", "deepseek-chat"),
+	}, nil
+}
+
+func envOrDefault(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
 	}
-	dir := os.Getenv("MIGRATIONS_DIR")
-	if dir == "" {
-		dir = "migrations"
-	}
-	return Config{DatabaseURL: databaseURL, Port: port, MigrationsDir: dir, StartupTimeout: 10 * time.Second, ShutdownTimeout: 10 * time.Second, ReadHeaderTimeout: 5 * time.Second}, nil
+	return fallback
 }
 
 // ConfigFromEnv builds a PostgreSQL URL from the process environment.
