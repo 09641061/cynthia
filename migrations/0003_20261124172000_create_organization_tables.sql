@@ -10,9 +10,16 @@ CREATE TABLE IF NOT EXISTS organizations (
     timezone TEXT NOT NULL DEFAULT 'UTC' CHECK (char_length(btrim(timezone)) BETWEEN 1 AND 120),
     business_hours JSONB NOT NULL,
     ai_instructions TEXT NOT NULL DEFAULT '' CHECK (char_length(ai_instructions) <= 4000),
+    whatsapp_phone_number TEXT NOT NULL DEFAULT '' CHECK (char_length(whatsapp_phone_number) <= 16),
+    whatsapp_phone_number_id TEXT NOT NULL DEFAULT '' CHECK (char_length(whatsapp_phone_number_id) <= 64),
+    whatsapp_enabled BOOLEAN NOT NULL DEFAULT FALSE,
     version BIGINT NOT NULL DEFAULT 1 CHECK (version > 0),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_organizations_whatsapp_enabled_requires_config CHECK (
+        NOT whatsapp_enabled
+        OR (whatsapp_phone_number <> '' AND whatsapp_phone_number_id <> '')
+    )
 );
 
 INSERT INTO organizations (

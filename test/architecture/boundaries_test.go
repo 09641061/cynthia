@@ -7,11 +7,12 @@ import (
 )
 
 func TestModuleDependencyBoundaries(t *testing.T) {
-	checkModuleBoundaries(t, "../../internal/catalog/...", "/internal/crm")
-	checkModuleBoundaries(t, "../../internal/crm/...", "/internal/catalog")
+	checkModuleBoundaries(t, "../../internal/catalog/...", []string{"/internal/crm", "/internal/organizations"})
+	checkModuleBoundaries(t, "../../internal/crm/...", []string{"/internal/catalog", "/internal/organizations"})
+	checkModuleBoundaries(t, "../../internal/organizations/...", []string{"/internal/catalog", "/internal/crm"})
 }
 
-func checkModuleBoundaries(t *testing.T, pattern, forbiddenModule string) {
+func checkModuleBoundaries(t *testing.T, pattern string, forbiddenModules []string) {
 	t.Helper()
 	command := exec.Command("go", "list", "-f", `{{.ImportPath}} -> {{join .Imports " "}}`, pattern)
 	output, err := command.CombinedOutput()
@@ -24,8 +25,10 @@ func checkModuleBoundaries(t *testing.T, pattern, forbiddenModule string) {
 			continue
 		}
 		for _, imported := range strings.Fields(imports) {
-			if strings.Contains(imported, forbiddenModule) {
-				t.Errorf("cross-module import forbidden: %s", line)
+			for _, forbidden := range forbiddenModules {
+				if strings.Contains(imported, forbidden) {
+					t.Errorf("cross-module import forbidden: %s", line)
+				}
 			}
 			if strings.HasSuffix(packagePath, "/domain") && (imported == "database/sql" || imported == "github.com/gin-gonic/gin" || strings.Contains(imported, "/infrastructure/")) {
 				t.Errorf("domain imports forbidden package: %s", line)
