@@ -16,7 +16,6 @@ CREATE TABLE IF NOT EXISTS catalog_services (
     id UUID PRIMARY KEY,
     category_id UUID NOT NULL REFERENCES catalog_categories(id) ON DELETE CASCADE,
     name TEXT NOT NULL CHECK (char_length(btrim(name)) BETWEEN 1 AND 120),
-    description TEXT NOT NULL DEFAULT '' CHECK (char_length(description) <= 2000),
     duration_minutes INTEGER NOT NULL CHECK (duration_minutes BETWEEN 1 AND 1440),
     price_minor_units BIGINT NOT NULL CHECK (price_minor_units >= 0),
     currency_code TEXT NOT NULL CHECK (currency_code ~ '^[A-Z]{3}$'),

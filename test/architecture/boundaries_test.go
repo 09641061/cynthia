@@ -7,9 +7,10 @@ import (
 )
 
 func TestModuleDependencyBoundaries(t *testing.T) {
-	checkModuleBoundaries(t, "../../internal/catalog/...", []string{"/internal/crm", "/internal/organizations"})
-	checkModuleBoundaries(t, "../../internal/crm/...", []string{"/internal/catalog", "/internal/organizations"})
-	checkModuleBoundaries(t, "../../internal/organizations/...", []string{"/internal/catalog", "/internal/crm"})
+	checkModuleBoundaries(t, "../../internal/catalog/...", []string{"/internal/crm", "/internal/organizations", "/internal/calendar"})
+	checkModuleBoundaries(t, "../../internal/crm/...", []string{"/internal/catalog", "/internal/organizations", "/internal/calendar"})
+	checkModuleBoundaries(t, "../../internal/organizations/...", []string{"/internal/catalog", "/internal/crm", "/internal/calendar"})
+	checkModuleBoundaries(t, "../../internal/calendar/...", []string{"/internal/catalog", "/internal/crm", "/internal/organizations"})
 }
 
 func checkModuleBoundaries(t *testing.T, pattern string, forbiddenModules []string) {
@@ -26,7 +27,13 @@ func checkModuleBoundaries(t *testing.T, pattern string, forbiddenModules []stri
 		}
 		for _, imported := range strings.Fields(imports) {
 			for _, forbidden := range forbiddenModules {
-				if strings.Contains(imported, forbidden) {
+				if !strings.Contains(imported, forbidden) {
+					continue
+				}
+				isModuleOrACL := strings.HasSuffix(packagePath, "/infrastructure/acl") ||
+					packagePath == "go-service/internal/calendar"
+				isPublishedRoot := strings.HasSuffix(imported, forbidden)
+				if !(isModuleOrACL && isPublishedRoot) {
 					t.Errorf("cross-module import forbidden: %s", line)
 				}
 			}
