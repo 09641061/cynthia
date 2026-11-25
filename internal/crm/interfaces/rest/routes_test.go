@@ -107,3 +107,34 @@ func TestCustomerCRUDAndDuplicateConflict(t *testing.T) {
 		t.Fatalf("missing customer = %d, want 404", notFound.Code)
 	}
 }
+
+func TestCustomerMultiWordSearch(t *testing.T) {
+	r := newTestRouter(newFakeCustomerStore())
+	if rec := doJSON(r, http.MethodPost, "/v1/customers", `{"name":"Ana Maria Perez","phone":"+573001112233"}`, ""); rec.Code != http.StatusCreated {
+		t.Fatalf("create ana = %d", rec.Code)
+	}
+	if rec := doJSON(r, http.MethodPost, "/v1/customers", `{"name":"Luis Gomez","phone":"+573119998877"}`, ""); rec.Code != http.StatusCreated {
+		t.Fatalf("create luis = %d", rec.Code)
+	}
+	for _, path := range []string{"/v1/customers?q=Ana+Perez", "/v1/customers?q=Ana+300"} {
+		rec := doJSON(r, http.MethodGet, path, "", "")
+		var page struct {
+			Items []struct{ Name string } `json:"items"`
+			Total int                     `json:"total"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &page); err != nil || rec.Code != http.StatusOK {
+			t.Fatalf("GET %s: code=%d err=%v", path, rec.Code, err)
+		}
+		if page.Total != 1 || len(page.Items) != 1 || page.Items[0].Name != "Ana Maria Perez" {
+			t.Fatalf("GET %s: got %+v", path, page)
+		}
+	}
+	rec := doJSON(r, http.MethodGet, "/v1/customers?q=Ana+999", "", "")
+	var empty struct {
+		Items []struct{ Name string } `json:"items"`
+		Total int                     `json:"total"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &empty); err != nil || rec.Code != http.StatusOK || empty.Total != 0 || len(empty.Items) != 0 {
+		t.Fatalf("GET /v1/customers?q=Ana+999: code=%d got=%+v err=%v", rec.Code, empty, err)
+	}
+}
