@@ -39,7 +39,7 @@ func (p *Processor) generateReply(ctx context.Context, orgCfg OrgConfig, conv Co
 			return "", false, false, err
 		}
 		if len(res.ToolCalls) == 0 {
-			text := strings.TrimSpace(res.Content)
+			text := domain.SanitizeWhatsAppReply(res.Content)
 			if text != "" {
 				return text, exec.HandedOff(), exec.MutatedOrHandedOff(), nil
 			}

@@ -10,9 +10,15 @@ import (
 )
 
 var (
-	uuidPattern  = regexp.MustCompile(`(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b`)
-	phonePattern = regexp.MustCompile(`(?:\+\d[\d\s-]{6,16}\d|\b\d{10,15}\b)`)
+	uuidPattern         = regexp.MustCompile(`(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b`)
+	phonePattern        = regexp.MustCompile(`(?:\+\d[\d\s-]{6,16}\d|\b\d{10,15}\b)`)
+	boldMarkdownPattern = regexp.MustCompile(`\*\*([^*\n]+)\*\*`)
 )
+
+// SanitizeWhatsAppReply normalizes Markdown double-asterisk bold (**text**) to WhatsApp single-asterisk bold (*text*).
+func SanitizeWhatsAppReply(s string) string {
+	return boldMarkdownPattern.ReplaceAllString(strings.TrimSpace(s), `*$1*`)
+}
 
 // BuildMessages constructs the system prompt and PII-stripped conversation history for DeepSeek.
 func BuildMessages(cfg PromptConfig, history []HistoryMessage) []ChatMessage {
