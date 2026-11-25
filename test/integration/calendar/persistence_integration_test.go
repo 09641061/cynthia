@@ -19,7 +19,11 @@ import (
 
 func TestExclusionConstraintAndConcurrentOverlap(t *testing.T) {
 	db, refs := newTestDB(t)
-	store := postgres.NewStore(db)
+	breaker, err := circuitbreaker.New(5, 30*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := postgres.NewStore(sharedpostgres.NewClient(db, breaker))
 	ctx := t.Context()
 	start := time.Date(2026, 11, 25, 10, 0, 0, 0, time.UTC)
 
@@ -120,7 +124,7 @@ func TestCrossContextReadersAndCancelledSlotReuse(t *testing.T) {
 	}
 
 	// Cancelling an appointment frees the slot for a new booking.
-	store := postgres.NewStore(db)
+	store := postgres.NewStore(client)
 	start := time.Date(2026, 11, 25, 16, 0, 0, 0, time.UTC)
 	appt, _ := domain.NewAppointment(domain.CreateInput{
 		ID: uuid.NewString(), PersonID: refs.personA, CustomerID: refs.customerID, ServiceID: refs.serviceID,
@@ -132,7 +136,7 @@ func TestCrossContextReadersAndCancelledSlotReuse(t *testing.T) {
 	}
 	cancelled := domain.StatusCancelled
 	patched, _ := saved.ApplyPatch(domain.Patch{Status: &cancelled})
-	if _, err := store.UpdateAppointment(ctx, 1, patched); err != nil {
+	if _, err := store.UpdateAppointment(ctx, patched); err != nil {
 		t.Fatal(err)
 	}
 	rebooked, _ := domain.NewAppointment(domain.CreateInput{

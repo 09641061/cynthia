@@ -10,7 +10,6 @@ type Customer struct {
 	ID        string
 	Name      string
 	Phone     string
-	Version   int64
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -24,7 +23,7 @@ func ValidateName(raw string) (string, error) {
 	return name, nil
 }
 
-// NewCustomer constructs a validated Customer with version 1.
+// NewCustomer constructs a validated Customer.
 func NewCustomer(id, name, phone string) (Customer, error) {
 	validName, err := ValidateName(name)
 	if err != nil {
@@ -35,9 +34,8 @@ func NewCustomer(id, name, phone string) (Customer, error) {
 		return Customer{}, err
 	}
 	return Customer{
-		ID:      id,
-		Name:    validName,
-		Phone:   validPhone,
-		Version: 1,
+		ID:    id,
+		Name:  validName,
+		Phone: validPhone,
 	}, nil
 }

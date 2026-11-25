@@ -53,7 +53,7 @@ func TestListMessagesPaginationAndDuplicateReplayOnClosedConversation(t *testing
 		t.Fatalf("expected older 2 [m1,m2], got %+v err=%v", page2, err)
 	}
 
-	if _, err := convSvc.UpdateStatus(ctx, m1.ConversationID, 1, "closed"); err != nil {
+	if _, err := convSvc.UpdateStatus(ctx, m1.ConversationID, "closed"); err != nil {
 		t.Fatalf("close conversation: %v", err)
 	}
 	replay, err := msgSvc.ReceiveInbound(ctx, ext1, "573009998877", "Luis", "msg-1")

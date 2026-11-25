@@ -2,7 +2,6 @@ package rest
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"go-service/internal/catalog/application"
 )
 
@@ -23,21 +22,4 @@ func RegisterRoutes(router gin.IRouter, catalog *application.Catalog) {
 	router.PUT("/catalog/services/:id", h.updateService)
 	router.DELETE("/catalog/services/:id", h.deleteService)
 	router.PUT("/catalog/services/:id/placement", h.moveService)
-}
-
-func pathID(c *gin.Context, key string) (string, bool) {
-	id, ok := normalizeID(c.Param(key))
-	if !ok {
-		badRequest(c)
-		return "", false
-	}
-	return id, true
-}
-
-func normalizeID(value string) (string, bool) {
-	id, err := uuid.Parse(value)
-	if err != nil {
-		return "", false
-	}
-	return id.String(), true
 }

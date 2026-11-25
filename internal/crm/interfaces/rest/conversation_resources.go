@@ -20,7 +20,6 @@ type conversationResource struct {
 	CustomerID         string     `json:"customer_id"`
 	Channel            string     `json:"channel"`
 	Status             string     `json:"status"`
-	Version            int64      `json:"version"`
 	LastMessageAt      *time.Time `json:"last_message_at,omitempty"`
 	LastMessagePreview *string    `json:"last_message_preview,omitempty"`
 	CreatedAt          time.Time  `json:"created_at"`
@@ -51,7 +50,6 @@ func toConversationResource(c domain.Conversation) conversationResource {
 		CustomerID:         c.CustomerID,
 		Channel:            c.Channel,
 		Status:             c.Status,
-		Version:            c.Version,
 		LastMessageAt:      c.LastMessageAt,
 		LastMessagePreview: c.LastMessagePreview,
 		CreatedAt:          c.CreatedAt,

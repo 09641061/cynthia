@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"go-service/internal/calendar/application"
 	sharedrest "go-service/internal/shared/rest"
 )
@@ -43,17 +42,8 @@ func parseFilter(c *gin.Context) (application.AppointmentFilter, bool) {
 	return filter, true
 }
 
-func pathUUID(c *gin.Context, key string) (string, bool) {
-	id, err := uuid.Parse(c.Param(key))
-	if err != nil {
-		sharedrest.BadRequest(c, "The identifier is invalid.")
-		return "", false
-	}
-	return id.String(), true
-}
-
 func validUUID(c *gin.Context, value string) bool {
-	if _, err := uuid.Parse(value); err != nil {
+	if _, ok := sharedrest.ParseUUID(value); !ok {
 		sharedrest.BadRequest(c, "The identifier is invalid.")
 		return false
 	}

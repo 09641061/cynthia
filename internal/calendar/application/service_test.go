@@ -90,17 +90,14 @@ func TestServiceUpdateAndDelete(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 	confirmed := "confirmed"
-	updated, err := svc.Update(t.Context(), created.Appointment.ID, 1, application.UpdateAppointmentInput{Status: &confirmed})
-	if err != nil || updated.Appointment.Version != 2 || updated.Appointment.Status != domain.StatusConfirmed {
+	updated, err := svc.Update(t.Context(), created.Appointment.ID, application.UpdateAppointmentInput{Status: &confirmed})
+	if err != nil || updated.Appointment.Status != domain.StatusConfirmed {
 		t.Fatalf("Update failed: err=%v, updated=%+v", err, updated)
 	}
-	if err := svc.Delete(t.Context(), created.Appointment.ID, 1); !errors.Is(err, domain.ErrVersionConflict) {
-		t.Fatalf("expected ErrVersionConflict on stale delete, got %v", err)
-	}
-	if err := svc.Delete(t.Context(), created.Appointment.ID, 2); err != nil {
+	if err := svc.Delete(t.Context(), created.Appointment.ID); err != nil {
 		t.Fatalf("Delete failed: %v", err)
 	}
-	if err := svc.Delete(t.Context(), created.Appointment.ID, 2); !errors.Is(err, domain.ErrNotFound) {
+	if err := svc.Delete(t.Context(), created.Appointment.ID); !errors.Is(err, domain.ErrNotFound) {
 		t.Fatalf("expected ErrNotFound on second delete, got %v", err)
 	}
 }
@@ -127,7 +124,7 @@ func TestServiceEnforcesBusinessHours(t *testing.T) {
 
 	closedDay := time.Date(2026, 11, 28, 10, 0, 0, 0, time.UTC)
 	end := closedDay.Add(30 * time.Minute)
-	_, err = svc.Update(t.Context(), created.Appointment.ID, 1, application.UpdateAppointmentInput{
+	_, err = svc.Update(t.Context(), created.Appointment.ID, application.UpdateAppointmentInput{
 		StartsAt: &closedDay, EndsAt: &end,
 	})
 	if !errors.As(err, &fieldErr) || fieldErr.Field != "starts_at" {

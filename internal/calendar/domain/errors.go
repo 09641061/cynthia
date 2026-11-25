@@ -13,8 +13,6 @@ var (
 	ErrServiceNotFound = errors.New("service not found")
 	// ErrTimeConflict indicates the requested time range overlaps an active booking for the person.
 	ErrTimeConflict = errors.New("appointment time conflicts with an existing booking")
-	// ErrVersionConflict indicates an optimistic concurrency version mismatch.
-	ErrVersionConflict = errors.New("appointment version conflict")
 	// ErrInvalid indicates an appointment value or transition violates calendar rules.
 	ErrInvalid = errors.New("invalid appointment data")
 )

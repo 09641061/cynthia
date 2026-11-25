@@ -36,8 +36,8 @@ func TestCalendarRESTLifecycleAndErrors(t *testing.T) {
 	if createdRec.Code != http.StatusCreated {
 		t.Fatalf("POST /v1/appointments = %d; body=%s", createdRec.Code, createdRec.Body.String())
 	}
-	if createdRec.Header().Get("ETag") != `"v1"` || !strings.HasPrefix(createdRec.Header().Get("Location"), "/v1/appointments/") {
-		t.Fatalf("unexpected headers: ETag=%q Location=%q", createdRec.Header().Get("ETag"), createdRec.Header().Get("Location"))
+	if !strings.HasPrefix(createdRec.Header().Get("Location"), "/v1/appointments/") {
+		t.Fatalf("unexpected Location=%q", createdRec.Header().Get("Location"))
 	}
 
 	var created struct {
@@ -58,27 +58,17 @@ func TestCalendarRESTLifecycleAndErrors(t *testing.T) {
 		t.Fatalf("POST notes > 1000 = %d, want 422", rec.Code)
 	}
 
-	missingIfMatch := doReq(fx.router, http.MethodPatch, "/v1/appointments/"+created.ID, `{"status":"confirmed"}`, nil)
-	if missingIfMatch.Code != http.StatusPreconditionRequired {
-		t.Fatalf("PATCH without If-Match = %d, want 428", missingIfMatch.Code)
+	okPatch := doReq(fx.router, http.MethodPatch, "/v1/appointments/"+created.ID, `{"status":"confirmed"}`, nil)
+	if okPatch.Code != http.StatusOK {
+		t.Fatalf("PATCH = %d, body=%s", okPatch.Code, okPatch.Body.String())
 	}
 
-	staleIfMatch := doReq(fx.router, http.MethodPatch, "/v1/appointments/"+created.ID, `{"status":"confirmed"}`, map[string]string{"If-Match": `"v9"`})
-	if staleIfMatch.Code != http.StatusPreconditionFailed {
-		t.Fatalf("PATCH with stale If-Match = %d, want 412", staleIfMatch.Code)
-	}
-
-	okPatch := doReq(fx.router, http.MethodPatch, "/v1/appointments/"+created.ID, `{"status":"confirmed"}`, map[string]string{"If-Match": `"v1"`})
-	if okPatch.Code != http.StatusOK || okPatch.Header().Get("ETag") != `"v2"` {
-		t.Fatalf("PATCH = %d, ETag=%q", okPatch.Code, okPatch.Header().Get("ETag"))
-	}
-
-	badTransition := doReq(fx.router, http.MethodPatch, "/v1/appointments/"+created.ID, `{"status":"pending"}`, map[string]string{"If-Match": `"v2"`})
+	badTransition := doReq(fx.router, http.MethodPatch, "/v1/appointments/"+created.ID, `{"status":"pending"}`, nil)
 	if badTransition.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("invalid transition = %d, want 422", badTransition.Code)
 	}
 
-	if rec := doReq(fx.router, http.MethodPatch, "/v1/appointments/"+created.ID, `{"notes":"`+longNotes+`"}`, map[string]string{"If-Match": `"v2"`}); rec.Code != http.StatusUnprocessableEntity {
+	if rec := doReq(fx.router, http.MethodPatch, "/v1/appointments/"+created.ID, `{"notes":"`+longNotes+`"}`, nil); rec.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("PATCH notes > 1000 = %d, want 422", rec.Code)
 	}
 
@@ -92,17 +82,11 @@ func TestCalendarRESTLifecycleAndErrors(t *testing.T) {
 		t.Fatalf("missing appointment = %d, want 404", notFound.Code)
 	}
 
-	if rec := doReq(fx.router, http.MethodDelete, "/v1/appointments/"+created.ID, "", nil); rec.Code != http.StatusPreconditionRequired {
-		t.Fatalf("DELETE without If-Match = %d, want 428", rec.Code)
-	}
-	if rec := doReq(fx.router, http.MethodDelete, "/v1/appointments/"+created.ID, "", map[string]string{"If-Match": `"v1"`}); rec.Code != http.StatusPreconditionFailed {
-		t.Fatalf("DELETE with stale If-Match = %d, want 412", rec.Code)
-	}
-	delRec := doReq(fx.router, http.MethodDelete, "/v1/appointments/"+created.ID, "", map[string]string{"If-Match": `"v2"`})
+	delRec := doReq(fx.router, http.MethodDelete, "/v1/appointments/"+created.ID, "", nil)
 	if delRec.Code != http.StatusNoContent {
 		t.Fatalf("DELETE = %d, want 204", delRec.Code)
 	}
-	if rec := doReq(fx.router, http.MethodDelete, "/v1/appointments/"+created.ID, "", map[string]string{"If-Match": `"v2"`}); rec.Code != http.StatusNotFound {
+	if rec := doReq(fx.router, http.MethodDelete, "/v1/appointments/"+created.ID, "", nil); rec.Code != http.StatusNotFound {
 		t.Fatalf("DELETE missing = %d, want 404", rec.Code)
 	}
 }

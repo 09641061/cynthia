@@ -25,3 +25,16 @@ func TestLoadServerAndMigrationDefaults(t *testing.T) {
 		t.Fatalf("unexpected configuration: port %q, migrations %q", cfg.Port, cfg.MigrationsDir)
 	}
 }
+
+func TestRedisURLFromHostEnv(t *testing.T) {
+	t.Setenv("REDIS_URL", "")
+	t.Setenv("REDIS_HOST", "redis.example.com")
+	t.Setenv("REDIS_PORT", "6380")
+	t.Setenv("REDIS_USERNAME", "default")
+	t.Setenv("REDIS_PASSWORD", "s3cr3t+pass")
+	got := RedisURLFromEnv()
+	want := "redis://default:s3cr3t+pass@redis.example.com:6380/0"
+	if got != want {
+		t.Fatalf("RedisURLFromEnv() = %q, want %q", got, want)
+	}
+}

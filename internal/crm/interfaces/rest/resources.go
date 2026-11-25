@@ -16,7 +16,6 @@ type customerResource struct {
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`
 	Phone     string    `json:"phone"`
-	Version   int64     `json:"version"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -33,7 +32,6 @@ func toCustomerResource(c domain.Customer) customerResource {
 		ID:        c.ID,
 		Name:      c.Name,
 		Phone:     c.Phone,
-		Version:   c.Version,
 		CreatedAt: c.CreatedAt,
 		UpdatedAt: c.UpdatedAt,
 	}

@@ -16,7 +16,6 @@ type Appointment struct {
 	Status     Status
 	Channel    Channel
 	Notes      string
-	Version    int64
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 }
@@ -75,7 +74,7 @@ func NewAppointment(in CreateInput) (Appointment, error) {
 	return Appointment{
 		ID: in.ID, PersonID: in.PersonID, CustomerID: in.CustomerID, ServiceID: in.ServiceID,
 		StartsAt: in.StartsAt.UTC(), EndsAt: in.EndsAt.UTC(),
-		Status: status, Channel: channel, Notes: in.Notes, Version: 1,
+		Status: status, Channel: channel, Notes: in.Notes,
 	}, nil
 }
 

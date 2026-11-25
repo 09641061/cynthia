@@ -52,7 +52,6 @@ type Organization struct {
 	WhatsAppPhoneNumber   string        `json:"whatsapp_phone_number"`
 	WhatsAppPhoneNumberID string        `json:"whatsapp_phone_number_id"`
 	WhatsAppEnabled       bool          `json:"whatsapp_enabled"`
-	Version               int64         `json:"version"`
 	CreatedAt             time.Time     `json:"created_at"`
 	UpdatedAt             time.Time     `json:"updated_at"`
 }

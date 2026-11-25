@@ -5,9 +5,9 @@ import (
 	"io"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 // Problem represents an RFC 9457 Problem Details response body.
@@ -45,28 +45,53 @@ func BindJSON(c *gin.Context, destination any) bool {
 	return true
 }
 
-// IfMatch parses the strong ETag version from the If-Match request header.
-func IfMatch(c *gin.Context) (int64, bool) {
-	value := c.GetHeader("If-Match")
-	if value == "" {
-		WriteProblem(c, http.StatusPreconditionRequired, "Precondition Required", "If-Match is required.")
-		return 0, false
+// ParseUUID validates a UUID string and returns its canonical form.
+func ParseUUID(raw string) (string, bool) {
+	id, err := uuid.Parse(raw)
+	if err != nil {
+		return "", false
 	}
-	if len(value) < 4 || !strings.HasPrefix(value, `"v`) || !strings.HasSuffix(value, `"`) {
-		BadRequest(c, "The If-Match header is invalid.")
-		return 0, false
-	}
-	version, err := strconv.ParseInt(value[2:len(value)-1], 10, 64)
-	if err != nil || version < 1 || strconv.FormatInt(version, 10) != value[2:len(value)-1] {
-		BadRequest(c, "The If-Match header is invalid.")
-		return 0, false
-	}
-	return version, true
+	return id.String(), true
 }
 
-// EntityTag formats a resource version as a strong ETag header value.
-func EntityTag(version int64) string {
-	return `"v` + strconv.FormatInt(version, 10) + `"`
+// PathUUID parses a UUID path parameter, writing a 400 Problem response on failure.
+func PathUUID(c *gin.Context, key string) (string, bool) {
+	id, ok := ParseUUID(c.Param(key))
+	if !ok {
+		BadRequest(c, "The "+key+" path parameter must be a valid UUID.")
+		return "", false
+	}
+	return id, true
+}
+
+// ParseUUIDSlice validates each element of ids as a UUID, writing a 400 Problem response on failure.
+func ParseUUIDSlice(c *gin.Context, ids []string) bool {
+	for _, raw := range ids {
+		if _, ok := ParseUUID(raw); !ok {
+			BadRequest(c, "All identifiers must be valid UUIDs.")
+			return false
+		}
+	}
+	return true
+}
+
+// QueryInt parses an integer query parameter clamped to [min, max], returning fallback if absent or invalid.
+func QueryInt(c *gin.Context, key string, fallback, min, max int) int {
+	raw := c.Query(key)
+	if raw == "" {
+		return fallback
+	}
+	v, err := strconv.Atoi(raw)
+	if err != nil {
+		return fallback
+	}
+	if v < min {
+		return min
+	}
+	if v > max {
+		return max
+	}
+	return v
 }
 
 // BadRequest aborts the request with a 400 Problem Details response.

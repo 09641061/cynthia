@@ -4,7 +4,6 @@ package persistence_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/google/uuid"
@@ -56,13 +55,10 @@ func TestConversationsInboundReopenDedupeAndOutboundIdempotency(t *testing.T) {
 		t.Fatalf("expected idempotent replay with 1 send call, got id=%s calls=%d err=%v", outReplay.ID, sender.calls, err)
 	}
 
-	// 3. Close conversation with optimistic locking; wrong version -> ErrPreconditionFailed
-	if _, err := convSvc.UpdateStatus(ctx, m1.ConversationID, 99, "closed"); !errors.Is(err, application.ErrPreconditionFailed) {
-		t.Fatalf("expected ErrPreconditionFailed, got %v", err)
-	}
-	closed, err := convSvc.UpdateStatus(ctx, m1.ConversationID, 1, "closed")
-	if err != nil || closed.Status != "closed" || closed.Version != 2 {
-		t.Fatalf("expected closed v2, got %+v err=%v", closed, err)
+	// 3. Close conversation
+	closed, err := convSvc.UpdateStatus(ctx, m1.ConversationID, "closed")
+	if err != nil || closed.Status != "closed" {
+		t.Fatalf("expected closed, got %+v err=%v", closed, err)
 	}
 
 	// 4. Inbound reopens the most recent closed conversation
@@ -77,7 +73,7 @@ func TestConversationsInboundReopenDedupeAndOutboundIdempotency(t *testing.T) {
 
 	// 5. Max-1-open partial unique index prevents a second open conversation for same customer
 	_, err = db.ExecContext(ctx,
-		`INSERT INTO crm_conversations (id, customer_id, channel, status, version) VALUES ($1, $2, 'whatsapp', 'open', 1)`,
+		`INSERT INTO crm_conversations (id, customer_id, channel, status) VALUES ($1, $2, 'whatsapp', 'open')`,
 		uuid.NewString(), reopened.CustomerID)
 	if err == nil {
 		t.Fatal("expected partial unique index violation for second open conversation")

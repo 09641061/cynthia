@@ -8,62 +8,58 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"time"
+
+	"go-service/internal/shared/circuitbreaker"
 )
 
 const (
 	defaultBaseURL    = "https://graph.facebook.com"
 	defaultAPIVersion = "v25.0"
 	defaultTimeout    = 10 * time.Second
+	maxSendAttempts   = 3
 )
 
 // Client sends outbound WhatsApp messages via the Meta Cloud API.
 type Client struct {
-	BaseURL    string
-	HTTPClient *http.Client
+	BaseURL         string
+	HTTPClient      *http.Client
+	Breaker         *circuitbreaker.Breaker
+	AccessToken     string
+	PhoneNumberID   string
+	GraphAPIVersion string
 }
 
-// NewClient creates a Meta Cloud API WhatsApp client with a 10s timeout.
-func NewClient() *Client {
+// NewClient creates a Meta Cloud API WhatsApp client with a 10s timeout and circuit breaker.
+func NewClient(cfg Config) *Client {
+	breaker, _ := circuitbreaker.New(5, 30*time.Second)
 	return &Client{
-		BaseURL:    defaultBaseURL,
-		HTTPClient: &http.Client{Timeout: defaultTimeout},
+		BaseURL:         defaultBaseURL,
+		HTTPClient:      &http.Client{Timeout: defaultTimeout},
+		Breaker:         breaker,
+		AccessToken:     strings.TrimSpace(cfg.AccessToken),
+		PhoneNumberID:   strings.TrimSpace(cfg.PhoneNumberID),
+		GraphAPIVersion: strings.TrimSpace(cfg.GraphAPIVersion),
 	}
 }
 
-type sendRequest struct {
-	MessagingProduct string       `json:"messaging_product"`
-	To               string       `json:"to"`
-	Type             string       `json:"type"`
-	Text             sendTextBody `json:"text"`
-}
+type transientError struct{ err error }
 
-type sendTextBody struct {
-	Body string `json:"body"`
-}
+func (e transientError) Error() string { return e.err.Error() }
+func (e transientError) Unwrap() error { return e.err }
 
-type sendResponse struct {
-	Messages []struct {
-		ID string `json:"id"`
-	} `json:"messages"`
-}
-
-// SendText delivers a text message using Meta Graph API.
+// SendText delivers a text message using Meta Graph API with circuit breaker and bounded transient retries.
 func (c *Client) SendText(ctx context.Context, phoneNumberID, toPhone, text string) (string, bool, error) {
-	token := strings.TrimSpace(os.Getenv("WHATSAPP_ACCESS_TOKEN"))
-	if token == "" {
-		return "", false, errors.New("whatsapp integration is not configured")
-	}
+	token := strings.TrimSpace(c.AccessToken)
 	resolvedPhoneID := strings.TrimSpace(phoneNumberID)
 	if resolvedPhoneID == "" {
-		resolvedPhoneID = strings.TrimSpace(os.Getenv("WHATSAPP_PHONE_NUMBER_ID"))
+		resolvedPhoneID = strings.TrimSpace(c.PhoneNumberID)
 	}
-	if resolvedPhoneID == "" {
+	if token == "" || resolvedPhoneID == "" {
 		return "", false, errors.New("whatsapp integration is not configured")
 	}
-	version := strings.TrimSpace(os.Getenv("WHATSAPP_GRAPH_API_VERSION"))
+	version := strings.TrimSpace(c.GraphAPIVersion)
 	if version == "" {
 		version = defaultAPIVersion
 	}
@@ -81,28 +77,64 @@ func (c *Client) SendText(ctx context.Context, phoneNumberID, toPhone, text stri
 		return "", false, errors.New("whatsapp delivery failed")
 	}
 	endpoint := fmt.Sprintf("%s/%s/%s/messages", baseURL, version, resolvedPhoneID)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
-	if err != nil {
-		return "", false, errors.New("whatsapp delivery failed")
+	var extID string
+	var uncertain bool
+	exec := func() error {
+		extID, uncertain, err = c.sendWithRetry(ctx, endpoint, token, payload)
+		return err
 	}
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
+	if c.Breaker != nil {
+		err = c.Breaker.Do(ctx, exec, func(e error) bool {
+			var te transientError
+			return errors.As(e, &te)
+		})
+	} else {
+		err = exec()
+	}
+	return extID, uncertain, err
+}
+
+func (c *Client) sendWithRetry(ctx context.Context, endpoint, token string, payload []byte) (string, bool, error) {
 	httpClient := c.HTTPClient
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: defaultTimeout}
 	}
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return "", true, errors.New("whatsapp delivery status is uncertain")
+	var lastErr error
+	for attempt := 1; attempt <= maxSendAttempts; attempt++ {
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
+		if err != nil {
+			return "", false, errors.New("whatsapp delivery failed")
+		}
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := httpClient.Do(req)
+		if err != nil {
+			return "", true, transientError{err: errors.New("whatsapp delivery status is uncertain")}
+		}
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 8192))
+		_ = resp.Body.Close()
+		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500 {
+			lastErr = transientError{err: fmt.Errorf("whatsapp delivery failed (status %d)", resp.StatusCode)}
+			if attempt < maxSendAttempts {
+				timer := time.NewTimer(time.Duration(attempt) * 50 * time.Millisecond)
+				select {
+				case <-ctx.Done():
+					timer.Stop()
+					return "", false, ctx.Err()
+				case <-timer.C:
+				}
+				continue
+			}
+			return "", false, lastErr
+		}
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return "", false, fmt.Errorf("whatsapp delivery failed (status %d)", resp.StatusCode)
+		}
+		var parsed sendResponse
+		if err := json.Unmarshal(body, &parsed); err != nil || len(parsed.Messages) == 0 || parsed.Messages[0].ID == "" {
+			return "", true, errors.New("whatsapp delivery status is uncertain")
+		}
+		return parsed.Messages[0].ID, false, nil
 	}
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 8192))
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return "", false, fmt.Errorf("whatsapp delivery failed (status %d)", resp.StatusCode)
-	}
-	var parsed sendResponse
-	if err := json.Unmarshal(body, &parsed); err != nil || len(parsed.Messages) == 0 || parsed.Messages[0].ID == "" {
-		return "", true, errors.New("whatsapp delivery status is uncertain")
-	}
-	return parsed.Messages[0].ID, false, nil
+	return "", false, lastErr
 }

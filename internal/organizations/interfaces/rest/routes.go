@@ -12,7 +12,7 @@ import (
 // Store persists and loads the singleton organization record.
 type Store interface {
 	Get(ctx context.Context) (domain.Organization, error)
-	Update(ctx context.Context, expectedVersion int64, patch domain.UpdatePatch) (domain.Organization, error)
+	Update(ctx context.Context, patch domain.UpdatePatch) (domain.Organization, error)
 }
 
 // Handler adapts organization application operations to HTTP.
@@ -32,25 +32,19 @@ func (h Handler) get(c *gin.Context) {
 		return
 	}
 	c.Header("Cache-Control", "no-store")
-	c.Header("ETag", sharedrest.EntityTag(org.Version))
 	c.JSON(http.StatusOK, org)
 }
 
 func (h Handler) patch(c *gin.Context) {
-	version, ok := sharedrest.IfMatch(c)
-	if !ok {
-		return
-	}
 	var patch domain.UpdatePatch
 	if !sharedrest.BindJSON(c, &patch) {
 		return
 	}
-	org, err := h.store.Update(c.Request.Context(), version, patch)
+	org, err := h.store.Update(c.Request.Context(), patch)
 	if err != nil {
 		writeError(c, err)
 		return
 	}
 	c.Header("Cache-Control", "no-store")
-	c.Header("ETag", sharedrest.EntityTag(org.Version))
 	c.JSON(http.StatusOK, org)
 }

@@ -55,7 +55,7 @@ func TestNewCustomer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewCustomer unexpected error: %v", err)
 	}
-	if customer.ID != id || customer.Name != "Ana Perez" || customer.Phone != "+573001234567" || customer.Version != 1 {
+	if customer.ID != id || customer.Name != "Ana Perez" || customer.Phone != "+573001234567" {
 		t.Fatalf("unexpected customer: %+v", customer)
 	}
 

@@ -19,19 +19,20 @@ import (
 
 func TestWhatsAppWebhookRoutes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	t.Setenv("WHATSAPP_VERIFY_TOKEN", "verify-secret")
-	t.Setenv("WHATSAPP_APP_SECRET", "app-secret")
 
 	custStore := newFakeCustomerStore()
 	convID, custID := uuid.NewString(), uuid.NewString()
 	cs := &stubConvStore{
-		conv:  domain.Conversation{ID: convID, CustomerID: custID, Channel: "whatsapp", Status: "open", Version: 1},
+		conv:  domain.Conversation{ID: convID, CustomerID: custID, Channel: "whatsapp", Status: "open"},
 		byExt: map[string]domain.Message{},
 	}
 	r := gin.New()
 	convSvc := application.NewConversationService(cs, cs)
 	msgSvc := application.NewMessageService(custStore, cs, cs, cs, nil, nil)
-	rest.RegisterRoutes(r.Group("/v1"), application.NewCustomerService(custStore), convSvc, msgSvc, whatsapp.NewVerifier())
+	rest.RegisterRoutes(r.Group("/v1"), application.NewCustomerService(custStore), convSvc, msgSvc, whatsapp.NewVerifier(whatsapp.Config{
+		VerifyToken: "verify-secret",
+		AppSecret:   "app-secret",
+	}))
 
 	// GET challenge: valid & invalid
 	rec := httptest.NewRecorder()
