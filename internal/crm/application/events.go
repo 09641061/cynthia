@@ -1,7 +1,6 @@
 package application
 
 import (
-	"context"
 	"sync"
 )
 
@@ -22,9 +21,9 @@ type EventPublisher interface {
 	Publish(event Event)
 }
 
-// EventSubscriber streams CRM events until the supplied context is canceled.
+// EventSubscriber streams CRM events until the returned unsubscribe function is called.
 type EventSubscriber interface {
-	Subscribe(ctx context.Context) <-chan Event
+	Subscribe() (<-chan Event, func())
 }
 
 // EventBroker is a thread-safe in-memory pub/sub broker for CRM events.
@@ -50,19 +49,21 @@ func (b *EventBroker) Publish(event Event) {
 	}
 }
 
-// Subscribe registers a subscriber channel that is removed and closed when ctx is done.
-func (b *EventBroker) Subscribe(ctx context.Context) <-chan Event {
+// Subscribe registers a subscriber channel and returns an idempotent unsubscribe function.
+func (b *EventBroker) Subscribe() (<-chan Event, func()) {
 	ch := make(chan Event, eventSubscriberBuffer)
 	b.mu.Lock()
 	b.subs[ch] = struct{}{}
 	b.mu.Unlock()
 
-	go func() {
-		<-ctx.Done()
-		b.mu.Lock()
-		delete(b.subs, ch)
-		close(ch)
-		b.mu.Unlock()
-	}()
-	return ch
+	var once sync.Once
+	unsubscribe := func() {
+		once.Do(func() {
+			b.mu.Lock()
+			delete(b.subs, ch)
+			close(ch)
+			b.mu.Unlock()
+		})
+	}
+	return ch, unsubscribe
 }

@@ -24,9 +24,12 @@ func (h Handler) streamEvents(c *gin.Context) {
 	w.WriteHeader(http.StatusOK)
 
 	ctx := c.Request.Context()
-	events := h.events.Subscribe(ctx)
+	events, unsubscribe := h.events.Subscribe()
+	defer unsubscribe()
 
-	_, _ = fmt.Fprint(w, ": connected\n\n")
+	if _, err := fmt.Fprint(w, ": connected\n\n"); err != nil {
+		return
+	}
 	w.Flush()
 
 	ticker := time.NewTicker(sseKeepaliveInterval)
@@ -44,10 +47,14 @@ func (h Handler) streamEvents(c *gin.Context) {
 			if err != nil {
 				continue
 			}
-			_, _ = fmt.Fprintf(w, "event: %s\ndata: %s\n\n", ev.Type, payload)
+			if _, err := fmt.Fprintf(w, "event: %s\ndata: %s\n\n", ev.Type, payload); err != nil {
+				return
+			}
 			w.Flush()
 		case <-ticker.C:
-			_, _ = fmt.Fprint(w, ": ping\n\n")
+			if _, err := fmt.Fprint(w, ": ping\n\n"); err != nil {
+				return
+			}
 			w.Flush()
 		}
 	}

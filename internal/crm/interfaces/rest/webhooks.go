@@ -2,11 +2,13 @@ package rest
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"go-service/internal/crm/domain"
 )
 
 type metaWebhookPayload struct {
@@ -80,6 +82,10 @@ func (h Handler) receiveWhatsAppWebhook(c *gin.Context) {
 				}
 				if _, err := h.messages.ReceiveInbound(c.Request.Context(), msg.ID, msg.From, names[msg.From], msg.Text.Body); err != nil {
 					slog.ErrorContext(c.Request.Context(), "failed to process inbound whatsapp message", "external_id", msg.ID, "error", err)
+					if !errors.Is(err, domain.ErrInvalid) {
+						writeProblem(c, http.StatusInternalServerError, "Internal Server Error", "Failed to process inbound message.")
+						return
+					}
 				}
 			}
 		}

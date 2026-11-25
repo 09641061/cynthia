@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"os"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"go-service/internal/crm/domain"
 )
+
+const deliveryPersistTimeout = 5 * time.Second
 
 // MessageService orchestrates outbound and inbound WhatsApp messaging.
 type MessageService struct {
@@ -24,20 +26,14 @@ type MessageService struct {
 
 // NewMessageService creates a MessageService with its required ports.
 func NewMessageService(
-	customers CustomerStore,
-	inboundUsers InboundCustomerStore,
-	conversations ConversationStore,
-	messages MessageStore,
-	sender WhatsAppSender,
-	configReader WhatsAppConfigReader,
+	customers CustomerStore, inboundUsers InboundCustomerStore,
+	conversations ConversationStore, messages MessageStore,
+	sender WhatsAppSender, configReader WhatsAppConfigReader,
 ) *MessageService {
 	return &MessageService{
-		customers:     customers,
-		inboundUsers:  inboundUsers,
-		conversations: conversations,
-		messages:      messages,
-		sender:        sender,
-		configReader:  configReader,
+		customers: customers, inboundUsers: inboundUsers,
+		conversations: conversations, messages: messages,
+		sender: sender, configReader: configReader,
 	}
 }
 
@@ -59,7 +55,7 @@ func (s *MessageService) SendOutbound(ctx context.Context, convID, idempotencyKe
 		return domain.Message{}, ErrConflict
 	}
 	if existing, err := s.messages.GetMessageByIdempotencyKey(ctx, convID, key); err == nil {
-		return existing, nil
+		return replayOutbound(existing)
 	} else if !errors.Is(err, ErrNotFound) {
 		return domain.Message{}, err
 	}
@@ -77,18 +73,36 @@ func (s *MessageService) SendOutbound(ctx context.Context, convID, idempotencyKe
 	})
 	if err != nil {
 		if existing, getErr := s.messages.GetMessageByIdempotencyKey(ctx, convID, key); getErr == nil {
-			return existing, nil
+			return replayOutbound(existing)
 		}
 		return domain.Message{}, err
 	}
 	return s.deliverOutbound(ctx, pending, customer.Phone)
 }
 
+func replayOutbound(existing domain.Message) (domain.Message, error) {
+	switch existing.Status {
+	case domain.MessageStatusFailed:
+		return existing, DeliveryError{Message: existing, Reason: "WhatsApp delivery failed."}
+	case domain.MessageStatusUncertain:
+		return existing, DeliveryError{Message: existing, Reason: "WhatsApp delivery status is uncertain."}
+	case domain.MessageStatusPending:
+		return domain.Message{}, ErrConflict
+	default:
+		return existing, nil
+	}
+}
+
 func (s *MessageService) deliverOutbound(ctx context.Context, pending domain.Message, toPhone string) (domain.Message, error) {
 	preview := domain.MessagePreview(pending.Content)
-	phoneNumberID, enabled := s.resolveWhatsAppConfig(ctx)
+	phoneNumberID, enabled, cfgErr := s.resolveWhatsAppConfig(ctx)
+	if cfgErr != nil {
+		return domain.Message{}, cfgErr
+	}
+	persistCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), deliveryPersistTimeout)
+	defer cancel()
 	if !enabled || phoneNumberID == "" || s.sender == nil {
-		failed, err := s.messages.UpdateMessageDelivery(ctx, pending.ID, domain.MessageStatusFailed, nil, preview)
+		failed, err := s.messages.UpdateMessageDelivery(persistCtx, pending.ID, domain.MessageStatusFailed, nil, preview)
 		if err != nil {
 			return domain.Message{}, err
 		}
@@ -104,7 +118,7 @@ func (s *MessageService) deliverOutbound(ctx context.Context, pending domain.Mes
 			status = domain.MessageStatusUncertain
 			reason = "WhatsApp delivery status is uncertain."
 		}
-		updated, err := s.messages.UpdateMessageDelivery(ctx, pending.ID, status, nil, preview)
+		updated, err := s.messages.UpdateMessageDelivery(persistCtx, pending.ID, status, nil, preview)
 		if err != nil {
 			return domain.Message{}, err
 		}
@@ -114,27 +128,20 @@ func (s *MessageService) deliverOutbound(ctx context.Context, pending domain.Mes
 	if extID != "" {
 		extPtr = &extID
 	}
-	updated, err := s.messages.UpdateMessageDelivery(ctx, pending.ID, domain.MessageStatusSent, extPtr, preview)
+	updated, err := s.messages.UpdateMessageDelivery(persistCtx, pending.ID, domain.MessageStatusSent, extPtr, preview)
 	if err == nil {
 		s.publishMessageCreated(updated.ConversationID)
 	}
 	return updated, err
 }
 
-func (s *MessageService) resolveWhatsAppConfig(ctx context.Context) (string, bool) {
-	if s.configReader != nil {
-		phoneID, enabled, err := s.configReader.GetWhatsAppConfig(ctx)
-		if err == nil && phoneID != "" {
-			return phoneID, enabled
-		}
-		if err == nil && !enabled {
-			fallback := strings.TrimSpace(os.Getenv("WHATSAPP_PHONE_NUMBER_ID"))
-			if fallback != "" {
-				return fallback, true
-			}
-			return "", false
-		}
+func (s *MessageService) resolveWhatsAppConfig(ctx context.Context) (string, bool, error) {
+	if s.configReader == nil {
+		return "", false, nil
 	}
-	fallback := strings.TrimSpace(os.Getenv("WHATSAPP_PHONE_NUMBER_ID"))
-	return fallback, fallback != ""
+	phoneID, enabled, err := s.configReader.GetWhatsAppConfig(ctx)
+	if err != nil {
+		return "", false, err
+	}
+	return strings.TrimSpace(phoneID), enabled, nil
 }

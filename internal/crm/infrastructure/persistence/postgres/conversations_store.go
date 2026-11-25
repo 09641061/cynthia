@@ -85,8 +85,8 @@ func (s *Store) UpdateConversationStatus(ctx context.Context, id string, expecte
 		return domain.Conversation{}, application.ErrConflict
 	}
 	if errors.Is(err, sql.ErrNoRows) {
-		if _, getErr := s.GetConversation(ctx, id); errors.Is(getErr, application.ErrNotFound) {
-			return domain.Conversation{}, application.ErrNotFound
+		if _, getErr := s.GetConversation(ctx, id); getErr != nil {
+			return domain.Conversation{}, getErr
 		}
 		return domain.Conversation{}, application.ErrPreconditionFailed
 	}
@@ -95,43 +95,50 @@ func (s *Store) UpdateConversationStatus(ctx context.Context, id string, expecte
 
 // EnsureOpenConversation returns an open conversation for the customer, reopening the latest closed one or creating a new one.
 func (s *Store) EnsureOpenConversation(ctx context.Context, customerID string) (domain.Conversation, error) {
-	var conv domain.Conversation
-	err := s.db.QueryRowContext(ctx,
-		`SELECT id, customer_id, channel, status, version, last_message_at, last_message_preview, created_at, updated_at
-		 FROM crm_conversations WHERE customer_id = $1 AND status = 'open' LIMIT 1`, customerID,
-	).Scan(&conv.ID, &conv.CustomerID, &conv.Channel, &conv.Status, &conv.Version,
-		&conv.LastMessageAt, &conv.LastMessagePreview, &conv.CreatedAt, &conv.UpdatedAt)
-	if err == nil {
-		return conv, nil
+	const maxAttempts = 3
+	for range maxAttempts {
+		if err := ctx.Err(); err != nil {
+			return domain.Conversation{}, err
+		}
+		var conv domain.Conversation
+		err := s.db.QueryRowContext(ctx,
+			`SELECT id, customer_id, channel, status, version, last_message_at, last_message_preview, created_at, updated_at
+			 FROM crm_conversations WHERE customer_id = $1 AND status = 'open' LIMIT 1`, customerID,
+		).Scan(&conv.ID, &conv.CustomerID, &conv.Channel, &conv.Status, &conv.Version,
+			&conv.LastMessageAt, &conv.LastMessagePreview, &conv.CreatedAt, &conv.UpdatedAt)
+		if err == nil {
+			return conv, nil
+		}
+		if !errors.Is(err, sql.ErrNoRows) {
+			return domain.Conversation{}, err
+		}
+		err = s.db.QueryRowContext(ctx,
+			`UPDATE crm_conversations SET status = 'open', version = version + 1, updated_at = CURRENT_TIMESTAMP
+			 WHERE id = (
+				SELECT id FROM crm_conversations WHERE customer_id = $1 AND status = 'closed'
+				ORDER BY last_message_at DESC NULLS LAST, created_at DESC LIMIT 1
+			 ) AND status = 'closed'
+			 RETURNING id, customer_id, channel, status, version, last_message_at, last_message_preview, created_at, updated_at`,
+			customerID,
+		).Scan(&conv.ID, &conv.CustomerID, &conv.Channel, &conv.Status, &conv.Version,
+			&conv.LastMessageAt, &conv.LastMessagePreview, &conv.CreatedAt, &conv.UpdatedAt)
+		if err == nil {
+			return conv, nil
+		}
+		if !errors.Is(err, sql.ErrNoRows) && !isPGCode(err, pgErrUniqueViolation) {
+			return domain.Conversation{}, err
+		}
+		err = s.db.QueryRowContext(ctx,
+			`INSERT INTO crm_conversations (id, customer_id, channel, status, version)
+			 VALUES ($1, $2, 'whatsapp', 'open', 1)
+			 RETURNING id, customer_id, channel, status, version, last_message_at, last_message_preview, created_at, updated_at`,
+			uuid.NewString(), customerID,
+		).Scan(&conv.ID, &conv.CustomerID, &conv.Channel, &conv.Status, &conv.Version,
+			&conv.LastMessageAt, &conv.LastMessagePreview, &conv.CreatedAt, &conv.UpdatedAt)
+		if isPGCode(err, pgErrUniqueViolation) {
+			continue
+		}
+		return conv, err
 	}
-	if !errors.Is(err, sql.ErrNoRows) {
-		return domain.Conversation{}, err
-	}
-	err = s.db.QueryRowContext(ctx,
-		`UPDATE crm_conversations SET status = 'open', version = version + 1, updated_at = CURRENT_TIMESTAMP
-		 WHERE id = (
-			SELECT id FROM crm_conversations WHERE customer_id = $1 AND status = 'closed'
-			ORDER BY last_message_at DESC NULLS LAST, created_at DESC LIMIT 1
-		 )
-		 RETURNING id, customer_id, channel, status, version, last_message_at, last_message_preview, created_at, updated_at`,
-		customerID,
-	).Scan(&conv.ID, &conv.CustomerID, &conv.Channel, &conv.Status, &conv.Version,
-		&conv.LastMessageAt, &conv.LastMessagePreview, &conv.CreatedAt, &conv.UpdatedAt)
-	if err == nil {
-		return conv, nil
-	}
-	if !errors.Is(err, sql.ErrNoRows) && !isPGCode(err, pgErrUniqueViolation) {
-		return domain.Conversation{}, err
-	}
-	err = s.db.QueryRowContext(ctx,
-		`INSERT INTO crm_conversations (id, customer_id, channel, status, version)
-		 VALUES ($1, $2, 'whatsapp', 'open', 1)
-		 RETURNING id, customer_id, channel, status, version, last_message_at, last_message_preview, created_at, updated_at`,
-		uuid.NewString(), customerID,
-	).Scan(&conv.ID, &conv.CustomerID, &conv.Channel, &conv.Status, &conv.Version,
-		&conv.LastMessageAt, &conv.LastMessagePreview, &conv.CreatedAt, &conv.UpdatedAt)
-	if isPGCode(err, pgErrUniqueViolation) {
-		return s.EnsureOpenConversation(ctx, customerID)
-	}
-	return conv, err
+	return domain.Conversation{}, application.ErrConflict
 }
