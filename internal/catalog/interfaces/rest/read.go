@@ -4,6 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+
+	sharedrest "go-service/internal/shared/rest"
 )
 
 func (h Handler) list(c *gin.Context) {
@@ -27,7 +29,7 @@ func (h Handler) getCategory(c *gin.Context) {
 		return
 	}
 	c.Header("Cache-Control", "no-store")
-	c.Header("ETag", entityTag(category.Version))
+	c.Header("ETag", sharedrest.EntityTag(category.Version))
 	c.JSON(http.StatusOK, category)
 }
 
@@ -42,6 +44,6 @@ func (h Handler) getService(c *gin.Context) {
 		return
 	}
 	c.Header("Cache-Control", "no-store")
-	c.Header("ETag", entityTag(service.Version))
+	c.Header("ETag", sharedrest.EntityTag(service.Version))
 	c.JSON(http.StatusOK, service)
 }

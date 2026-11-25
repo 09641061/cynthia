@@ -4,11 +4,13 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+
+	sharedrest "go-service/internal/shared/rest"
 )
 
 func (h Handler) createCategory(c *gin.Context) {
 	var request categoryRequest
-	if !bindJSON(c, &request) {
+	if !sharedrest.BindJSON(c, &request) {
 		return
 	}
 	category, err := h.catalog.CreateCategory(c.Request.Context(), request.Name)
@@ -18,7 +20,7 @@ func (h Handler) createCategory(c *gin.Context) {
 	}
 	c.Header("Cache-Control", "no-store")
 	c.Header("Location", "/v1/catalog/categories/"+category.ID)
-	c.Header("ETag", entityTag(category.Version))
+	c.Header("ETag", sharedrest.EntityTag(category.Version))
 	c.JSON(http.StatusCreated, category)
 }
 
@@ -27,12 +29,12 @@ func (h Handler) updateCategory(c *gin.Context) {
 	if !ok {
 		return
 	}
-	version, ok := ifMatch(c)
+	version, ok := sharedrest.IfMatch(c)
 	if !ok {
 		return
 	}
 	var request categoryRequest
-	if !bindJSON(c, &request) {
+	if !sharedrest.BindJSON(c, &request) {
 		return
 	}
 	category, err := h.catalog.UpdateCategory(c.Request.Context(), id, request.Name, version)
@@ -41,7 +43,7 @@ func (h Handler) updateCategory(c *gin.Context) {
 		return
 	}
 	c.Header("Cache-Control", "no-store")
-	c.Header("ETag", entityTag(category.Version))
+	c.Header("ETag", sharedrest.EntityTag(category.Version))
 	c.JSON(http.StatusOK, category)
 }
 
@@ -50,7 +52,7 @@ func (h Handler) deleteCategory(c *gin.Context) {
 	if !ok {
 		return
 	}
-	version, ok := ifMatch(c)
+	version, ok := sharedrest.IfMatch(c)
 	if !ok {
 		return
 	}
@@ -67,12 +69,12 @@ func (h Handler) moveCategory(c *gin.Context) {
 	if !ok {
 		return
 	}
-	version, ok := ifMatch(c)
+	version, ok := sharedrest.IfMatch(c)
 	if !ok {
 		return
 	}
 	var request categoryPlacementRequest
-	if !bindJSON(c, &request) {
+	if !sharedrest.BindJSON(c, &request) {
 		return
 	}
 	category, err := h.catalog.MoveCategory(c.Request.Context(), id, request.SortOrder, version)
@@ -81,6 +83,6 @@ func (h Handler) moveCategory(c *gin.Context) {
 		return
 	}
 	c.Header("Cache-Control", "no-store")
-	c.Header("ETag", entityTag(category.Version))
+	c.Header("ETag", sharedrest.EntityTag(category.Version))
 	c.JSON(http.StatusOK, category)
 }
