@@ -36,6 +36,7 @@ func Migrate(ctx context.Context, db *sql.DB, dir string) (resultErr error) {
 		{1, "0001_20261124175238_create_catalog_tables.sql"},
 		{2, "0002_20261124180000_remove_service_description.sql"},
 		{3, "0003_20261124172000_create_organization_tables.sql"},
+		{4, "0004_20261124182500_create_crm_tables.sql"},
 	} {
 		var applied bool
 		if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM catalog_schema_migrations WHERE version = $1)`, migration.version).Scan(&applied); err != nil {
