@@ -22,6 +22,7 @@ type MessageService struct {
 	sender        WhatsAppSender
 	configReader  WhatsAppConfigReader
 	events        EventPublisher
+	inboundHook   InboundHook
 }
 
 // NewMessageService creates a MessageService with its required ports.
@@ -39,29 +40,38 @@ func NewMessageService(
 
 // SendOutbound persists a pending outbound message, delivers it via Meta Cloud API, and records the outcome.
 func (s *MessageService) SendOutbound(ctx context.Context, convID, idempotencyKey, rawContent string) (domain.Message, error) {
+	msg, sentNow, err := s.sendOutboundCore(ctx, convID, idempotencyKey, rawContent)
+	if err == nil && sentNow {
+		s.pauseAfterStaffReply(ctx, convID)
+	}
+	return msg, err
+}
+
+func (s *MessageService) sendOutboundCore(ctx context.Context, convID, idempotencyKey, rawContent string) (domain.Message, bool, error) {
 	key := strings.TrimSpace(idempotencyKey)
 	if key == "" {
-		return domain.Message{}, domain.InvalidFieldError{Field: "idempotency_key", Reason: "must not be blank"}
+		return domain.Message{}, false, domain.InvalidFieldError{Field: "idempotency_key", Reason: "must not be blank"}
 	}
 	content, err := domain.ValidateMessageContent(rawContent)
 	if err != nil {
-		return domain.Message{}, err
+		return domain.Message{}, false, err
 	}
 	conv, err := s.conversations.GetConversation(ctx, convID)
 	if err != nil {
-		return domain.Message{}, err
+		return domain.Message{}, false, err
 	}
 	if conv.Status == domain.ConversationStatusClosed {
-		return domain.Message{}, ErrConflict
+		return domain.Message{}, false, ErrConflict
 	}
 	if existing, err := s.messages.GetMessageByIdempotencyKey(ctx, convID, key); err == nil {
-		return replayOutbound(existing)
+		msg, replayErr := replayOutbound(existing)
+		return msg, false, replayErr
 	} else if !errors.Is(err, ErrNotFound) {
-		return domain.Message{}, err
+		return domain.Message{}, false, err
 	}
 	customer, err := s.customers.GetCustomer(ctx, conv.CustomerID)
 	if err != nil {
-		return domain.Message{}, err
+		return domain.Message{}, false, err
 	}
 	pending, err := s.messages.InsertOutboundPending(ctx, domain.Message{
 		ID:             uuid.NewString(),
@@ -73,24 +83,13 @@ func (s *MessageService) SendOutbound(ctx context.Context, convID, idempotencyKe
 	})
 	if err != nil {
 		if existing, getErr := s.messages.GetMessageByIdempotencyKey(ctx, convID, key); getErr == nil {
-			return replayOutbound(existing)
+			msg, replayErr := replayOutbound(existing)
+			return msg, false, replayErr
 		}
-		return domain.Message{}, err
+		return domain.Message{}, false, err
 	}
-	return s.deliverOutbound(ctx, pending, customer.Phone)
-}
-
-func replayOutbound(existing domain.Message) (domain.Message, error) {
-	switch existing.Status {
-	case domain.MessageStatusFailed:
-		return existing, DeliveryError{Message: existing, Reason: "WhatsApp delivery failed."}
-	case domain.MessageStatusUncertain:
-		return existing, DeliveryError{Message: existing, Reason: "WhatsApp delivery status is uncertain."}
-	case domain.MessageStatusPending:
-		return domain.Message{}, ErrConflict
-	default:
-		return existing, nil
-	}
+	msg, err := s.deliverOutbound(ctx, pending, customer.Phone)
+	return msg, err == nil, err
 }
 
 func (s *MessageService) deliverOutbound(ctx context.Context, pending domain.Message, toPhone string) (domain.Message, error) {
@@ -133,15 +132,4 @@ func (s *MessageService) deliverOutbound(ctx context.Context, pending domain.Mes
 		s.publishMessageCreated(updated.ConversationID)
 	}
 	return updated, err
-}
-
-func (s *MessageService) resolveWhatsAppConfig(ctx context.Context) (string, bool, error) {
-	if s.configReader == nil {
-		return "", false, nil
-	}
-	phoneID, enabled, err := s.configReader.GetWhatsAppConfig(ctx)
-	if err != nil {
-		return "", false, err
-	}
-	return strings.TrimSpace(phoneID), enabled, nil
 }

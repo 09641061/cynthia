@@ -18,11 +18,28 @@ type stubConvStore struct {
 func (s *stubConvStore) ListConversations(context.Context, application.ConversationFilter) ([]domain.Conversation, int, error) {
 	return []domain.Conversation{s.conv}, 1, nil
 }
-func (s *stubConvStore) GetConversation(context.Context, string) (domain.Conversation, error) {
+func (s *stubConvStore) GetConversation(_ context.Context, id string) (domain.Conversation, error) {
+	if s.conv.ID != "" && id != s.conv.ID {
+		return domain.Conversation{}, application.ErrNotFound
+	}
 	return s.conv, nil
 }
 func (s *stubConvStore) UpdateConversationStatus(_ context.Context, _ string, status string) (domain.Conversation, error) {
+	if s.conv.Status == domain.ConversationStatusClosed && status == domain.ConversationStatusOpen {
+		s.conv.AiPaused = false
+		s.conv.HandoffReason = ""
+	}
 	s.conv.Status = status
+	return s.conv, nil
+}
+func (s *stubConvStore) UpdateConversationAI(_ context.Context, _ string, aiPaused bool, reason string) (domain.Conversation, error) {
+	s.conv.AiPaused = aiPaused
+	s.conv.HandoffReason = reason
+	return s.conv, nil
+}
+func (s *stubConvStore) SetConversationAIPaused(_ context.Context, _ string, aiPaused bool, reason string) (domain.Conversation, error) {
+	s.conv.AiPaused = aiPaused
+	s.conv.HandoffReason = reason
 	return s.conv, nil
 }
 func (s *stubConvStore) EnsureOpenConversation(context.Context, string) (domain.Conversation, error) {

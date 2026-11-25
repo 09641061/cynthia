@@ -27,7 +27,7 @@ func scanOrganization(row rowScanner) (domain.Organization, error) {
 	var hoursJSON []byte
 	err := row.Scan(
 		&org.ID, &org.Name, &org.BusinessType, &org.ContactEmail, &org.Timezone, &org.CurrencyCode,
-		&hoursJSON, &org.AiInstructions,
+		&hoursJSON, &org.AiInstructions, &org.AiEnabled,
 		&org.WhatsAppPhoneNumber, &org.WhatsAppPhoneNumberID, &org.WhatsAppEnabled,
 		&org.CreatedAt, &org.UpdatedAt,
 	)
@@ -45,7 +45,7 @@ func scanOrganization(row rowScanner) (domain.Organization, error) {
 
 func (s *Store) get(ctx context.Context) (domain.Organization, error) {
 	row := s.db.QueryRowContext(ctx, `SELECT id, name, business_type, contact_email, timezone, currency_code,
-		business_hours, ai_instructions, whatsapp_phone_number, whatsapp_phone_number_id,
+		business_hours, ai_instructions, ai_enabled, whatsapp_phone_number, whatsapp_phone_number_id,
 		whatsapp_enabled, created_at, updated_at
 		FROM organizations WHERE singleton_key = TRUE`)
 	return scanOrganization(row)
@@ -62,7 +62,7 @@ func (s *Store) update(ctx context.Context, patch domain.UpdatePatch) (result do
 		}
 	}()
 	row := tx.QueryRowContext(ctx, `SELECT id, name, business_type, contact_email, timezone, currency_code,
-		business_hours, ai_instructions, whatsapp_phone_number, whatsapp_phone_number_id,
+		business_hours, ai_instructions, ai_enabled, whatsapp_phone_number, whatsapp_phone_number_id,
 		whatsapp_enabled, created_at, updated_at
 		FROM organizations WHERE singleton_key = TRUE FOR UPDATE`)
 	current, err := scanOrganization(row)
@@ -79,13 +79,13 @@ func (s *Store) update(ctx context.Context, patch domain.UpdatePatch) (result do
 	}
 	err = tx.QueryRowContext(ctx, `UPDATE organizations
 		SET name = $1, business_type = $2, contact_email = $3, timezone = $4, currency_code = $5,
-		    business_hours = $6, ai_instructions = $7,
-		    whatsapp_phone_number = $8, whatsapp_phone_number_id = $9, whatsapp_enabled = $10,
+		    business_hours = $6, ai_instructions = $7, ai_enabled = $8,
+		    whatsapp_phone_number = $9, whatsapp_phone_number_id = $10, whatsapp_enabled = $11,
 		    updated_at = CURRENT_TIMESTAMP
-		WHERE id = $11
+		WHERE id = $12
 		RETURNING updated_at`,
 		next.Name, next.BusinessType, next.ContactEmail, next.Timezone, next.CurrencyCode,
-		hoursJSON, next.AiInstructions,
+		hoursJSON, next.AiInstructions, next.AiEnabled,
 		next.WhatsAppPhoneNumber, next.WhatsAppPhoneNumberID, next.WhatsAppEnabled,
 		next.ID,
 	).Scan(&next.UpdatedAt)

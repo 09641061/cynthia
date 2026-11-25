@@ -105,3 +105,25 @@ func (h Handler) updateConversationStatus(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
 	c.JSON(http.StatusOK, toConversationResource(conv))
 }
+
+func (h Handler) updateConversationAI(c *gin.Context) {
+	convID, ok := sharedrest.PathUUID(c, "id")
+	if !ok {
+		return
+	}
+	var input updateAIInput
+	if !sharedrest.BindJSON(c, &input) {
+		return
+	}
+	if input.AIPaused == nil {
+		writeProblem(c, http.StatusBadRequest, "Bad Request", "ai_paused is required.")
+		return
+	}
+	conv, err := h.conversations.UpdateAI(c.Request.Context(), convID, *input.AIPaused)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	c.Header("Cache-Control", "no-store")
+	c.JSON(http.StatusOK, toConversationResource(conv))
+}

@@ -31,6 +31,10 @@ type Config struct {
 	StartupTimeout          time.Duration
 	ShutdownTimeout         time.Duration
 	ReadHeaderTimeout       time.Duration
+	DeepSeekAPIKey          string
+	DeepSeekBaseURL         string
+	DeepSeekModel           string
+	AssistantWorkers        int
 }
 
 func Load() (Config, error) {
@@ -60,6 +64,10 @@ func Load() (Config, error) {
 		StartupTimeout:          10 * time.Second,
 		ShutdownTimeout:         10 * time.Second,
 		ReadHeaderTimeout:       5 * time.Second,
+		DeepSeekAPIKey:          os.Getenv("DEEPSEEK_API_KEY"),
+		DeepSeekBaseURL:         envOrDefault("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
+		DeepSeekModel:           envOrDefault("DEEPSEEK_MODEL", "deepseek-chat"),
+		AssistantWorkers:        envIntClamped("ASSISTANT_WORKERS", 2, 1),
 	}, nil
 }
 
@@ -108,6 +116,18 @@ func envOrDefault(key, fallback string) string {
 func envIntOrDefault(key string, fallback int) int {
 	if v := os.Getenv(key); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return n
+		}
+	}
+	return fallback
+}
+
+func envIntClamped(key string, fallback, minVal int) int {
+	if v := os.Getenv(key); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			if n < minVal {
+				return minVal
+			}
 			return n
 		}
 	}

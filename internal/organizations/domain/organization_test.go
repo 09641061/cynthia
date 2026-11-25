@@ -31,11 +31,13 @@ func TestApplyPatchValid(t *testing.T) {
 	tz := "America/New_York"
 	email := ""
 	currency := "COP"
+	aiEnabled := true
 	updated, err := ApplyPatch(baseOrg(), UpdatePatch{
 		Name:         &name,
 		Timezone:     &tz,
 		ContactEmail: &email,
 		CurrencyCode: &currency,
+		AiEnabled:    &aiEnabled,
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -43,7 +45,7 @@ func TestApplyPatchValid(t *testing.T) {
 	if updated.Name != "New Salon" {
 		t.Fatalf("expected trimmed name, got %q", updated.Name)
 	}
-	if updated.Timezone != "America/New_York" || updated.ContactEmail != "" || updated.CurrencyCode != "COP" {
+	if updated.Timezone != "America/New_York" || updated.ContactEmail != "" || updated.CurrencyCode != "COP" || !updated.AiEnabled || updated.WhatsAppEnabled {
 		t.Fatalf("unexpected fields: %+v", updated)
 	}
 }

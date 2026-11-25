@@ -17,6 +17,8 @@ type Conversation struct {
 	CustomerID         string
 	Channel            string
 	Status             string
+	AiPaused           bool
+	HandoffReason      string
 	LastMessageAt      *time.Time
 	LastMessagePreview *string
 	CreatedAt          time.Time

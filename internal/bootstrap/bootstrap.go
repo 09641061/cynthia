@@ -5,11 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
+	"sync"
 	"time"
 
 	"go-service/internal/bootstrap/config"
-	"go-service/internal/crm"
-	"go-service/internal/iam"
 	"go-service/internal/shared/circuitbreaker"
 	"go-service/internal/shared/postgres"
 	sharedredis "go-service/internal/shared/redis"
@@ -48,22 +48,23 @@ func Run(ctx context.Context) (resultErr error) {
 	if err != nil {
 		return fmt.Errorf("configure PostgreSQL circuit breaker: %w", err)
 	}
-	router, err := newRouter(postgres.NewClient(db, breaker), redisClient, iam.ModuleConfig{
-		ResendAPIKey: cfg.ResendAPIKey,
-		ResendFrom:   cfg.ResendFrom,
-		AppURL:       cfg.AppURL,
-		SessionTTL:   cfg.SessionTTL,
-		RefreshTTL:   cfg.RefreshTTL,
-		InviteTTL:    cfg.InviteTTL,
-	}, crm.WhatsAppConfig{
-		AccessToken:     cfg.WhatsAppAccessToken,
-		PhoneNumberID:   cfg.WhatsAppPhoneNumberID,
-		GraphAPIVersion: cfg.WhatsAppGraphAPIVersion,
-		VerifyToken:     cfg.WhatsAppVerifyToken,
-		AppSecret:       cfg.WhatsAppAppSecret,
-	})
+	client := postgres.NewClient(db, breaker)
+	router, startWorker, err := newApp(client, redisClient, cfg)
 	if err != nil {
 		return fmt.Errorf("configure HTTP router: %w", err)
+	}
+	if client != nil && strings.TrimSpace(cfg.DeepSeekAPIKey) != "" {
+		workerCtx, cancelWorker := context.WithCancel(ctx)
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			startWorker(workerCtx)
+		}()
+		defer func() {
+			cancelWorker()
+			wg.Wait()
+		}()
 	}
 	server := &http.Server{Addr: ":" + cfg.Port, Handler: router, ReadHeaderTimeout: cfg.ReadHeaderTimeout}
 	return serve(ctx, server, cfg.ShutdownTimeout)

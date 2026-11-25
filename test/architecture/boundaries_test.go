@@ -7,11 +7,12 @@ import (
 )
 
 func TestModuleDependencyBoundaries(t *testing.T) {
-	checkModuleBoundaries(t, "../../internal/catalog/...", []string{"/internal/crm", "/internal/organizations", "/internal/calendar", "/internal/iam"})
-	checkModuleBoundaries(t, "../../internal/crm/...", []string{"/internal/catalog", "/internal/organizations", "/internal/calendar", "/internal/iam"})
-	checkModuleBoundaries(t, "../../internal/organizations/...", []string{"/internal/catalog", "/internal/crm", "/internal/calendar", "/internal/iam"})
-	checkModuleBoundaries(t, "../../internal/calendar/...", []string{"/internal/catalog", "/internal/crm", "/internal/organizations", "/internal/iam"})
-	checkModuleBoundaries(t, "../../internal/iam/...", []string{"/internal/catalog", "/internal/crm", "/internal/organizations", "/internal/calendar"})
+	checkModuleBoundaries(t, "../../internal/catalog/...", []string{"/internal/crm", "/internal/organizations", "/internal/calendar", "/internal/iam", "/internal/assistant"})
+	checkModuleBoundaries(t, "../../internal/crm/...", []string{"/internal/catalog", "/internal/organizations", "/internal/calendar", "/internal/iam", "/internal/assistant"})
+	checkModuleBoundaries(t, "../../internal/organizations/...", []string{"/internal/catalog", "/internal/crm", "/internal/calendar", "/internal/iam", "/internal/assistant"})
+	checkModuleBoundaries(t, "../../internal/calendar/...", []string{"/internal/catalog", "/internal/crm", "/internal/organizations", "/internal/iam", "/internal/assistant"})
+	checkModuleBoundaries(t, "../../internal/iam/...", []string{"/internal/catalog", "/internal/crm", "/internal/organizations", "/internal/calendar", "/internal/assistant"})
+	checkModuleBoundaries(t, "../../internal/assistant/...", []string{"/internal/catalog", "/internal/crm", "/internal/organizations", "/internal/calendar", "/internal/iam"})
 }
 
 func checkModuleBoundaries(t *testing.T, pattern string, forbiddenModules []string) {
@@ -32,7 +33,8 @@ func checkModuleBoundaries(t *testing.T, pattern string, forbiddenModules []stri
 					continue
 				}
 				isModuleOrACL := strings.HasSuffix(packagePath, "/infrastructure/acl") ||
-					packagePath == "go-service/internal/calendar"
+					packagePath == "go-service/internal/calendar" ||
+					packagePath == "go-service/internal/assistant"
 				isPublishedRoot := strings.HasSuffix(imported, forbidden)
 				if !(isModuleOrACL && isPublishedRoot) {
 					t.Errorf("cross-module import forbidden: %s", line)

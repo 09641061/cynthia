@@ -89,3 +89,29 @@ func (s *ConversationService) UpdateStatus(ctx context.Context, convID, rawStatu
 	}
 	return conv, nil
 }
+
+// UpdateAI toggles AI pause state for an open conversation.
+func (s *ConversationService) UpdateAI(ctx context.Context, convID string, aiPaused bool) (domain.Conversation, error) {
+	current, err := s.conversations.GetConversation(ctx, convID)
+	if err != nil {
+		return domain.Conversation{}, err
+	}
+	if current.Status == domain.ConversationStatusClosed {
+		return domain.Conversation{}, ErrConflict
+	}
+	reason := ""
+	if aiPaused {
+		reason = current.HandoffReason
+		if reason == "" {
+			reason = "manual_pause"
+		}
+	}
+	conv, err := s.conversations.UpdateConversationAI(ctx, convID, aiPaused, reason)
+	if err != nil {
+		return domain.Conversation{}, err
+	}
+	if s.events != nil {
+		s.events.Publish(Event{Type: EventConversationUpdated, ConversationID: conv.ID})
+	}
+	return conv, nil
+}

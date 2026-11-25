@@ -30,7 +30,7 @@ func NewServiceReader(db *sharedpostgres.Client) *ServiceReader {
 
 // GetService fetches a single service summary by ID.
 func (r *ServiceReader) GetService(ctx context.Context, id string) (ServiceSummary, error) {
-	if r.db == nil {
+	if r == nil || r.db == nil {
 		return ServiceSummary{}, ErrServiceNotFound
 	}
 	var s ServiceSummary
@@ -48,7 +48,7 @@ func (r *ServiceReader) GetService(ctx context.Context, id string) (ServiceSumma
 // GetServicesByIDs batch-fetches service summaries keyed by service ID.
 func (r *ServiceReader) GetServicesByIDs(ctx context.Context, ids []string) (map[string]ServiceSummary, error) {
 	result := make(map[string]ServiceSummary)
-	if r.db == nil || len(ids) == 0 {
+	if r == nil || r.db == nil || len(ids) == 0 {
 		return result, nil
 	}
 	err := r.db.Do(ctx, func() error {
