@@ -9,7 +9,9 @@ import (
 
 	"github.com/google/uuid"
 	"go-service/internal/calendar"
+	calendaracl "go-service/internal/calendar/infrastructure/acl"
 	"go-service/internal/catalog"
+	"go-service/internal/iam"
 	"go-service/internal/organizations"
 	"go-service/internal/shared/circuitbreaker"
 	sharedpostgres "go-service/internal/shared/postgres"
@@ -37,7 +39,7 @@ func TestAssistantGatewayAndCatalogReaderIntegration(t *testing.T) {
 	client := sharedpostgres.NewClient(db, breaker)
 	svcReader := catalog.NewServiceReader(client)
 	schedReader := organizations.NewScheduleReader(client)
-	gw := calendar.NewAssistantCalendarGateway(client, svcReader, schedReader)
+	gw := calendar.NewAssistantCalendarGateway(client, calendaracl.NewPersonAdapter(iam.NewPersonReader(client)), svcReader, schedReader)
 
 	items, err := svcReader.ListCatalogServices(ctx)
 	if err != nil || len(items) != 1 || items[0].CategoryName != "Hair" || items[0].PriceMinorUnits != 50000 {
@@ -75,7 +77,7 @@ func TestAssistantGatewayAndCatalogReaderIntegration(t *testing.T) {
 	}
 
 	upcoming, err := gw.ListCustomerUpcomingAppointments(ctx, refs.customerID)
-	if err != nil || len(upcoming) != 1 || upcoming[0].ServiceName != "Cut" || upcoming[0].PersonName != "Lucia" {
+	if err != nil || len(upcoming) != 1 || upcoming[0].ServiceName != "Cut" || upcoming[0].PersonName != "Lucia Mendez" {
 		t.Fatalf("unexpected upcoming: %+v, err=%v", upcoming, err)
 	}
 

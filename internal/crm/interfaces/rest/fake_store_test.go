@@ -108,7 +108,6 @@ func (f *fakeCustomerStore) CreateCustomer(_ context.Context, customer domain.Cu
 		}
 	}
 	now := time.Now().UTC()
-	customer.Version = 1
 	customer.CreatedAt = now
 	customer.UpdatedAt = now
 	f.customers[customer.ID] = customer
@@ -116,13 +115,10 @@ func (f *fakeCustomerStore) CreateCustomer(_ context.Context, customer domain.Cu
 	return customer, nil
 }
 
-func (f *fakeCustomerStore) UpdateCustomer(_ context.Context, id string, expectedVersion int64, name, phone string) (domain.Customer, error) {
+func (f *fakeCustomerStore) UpdateCustomer(_ context.Context, id, name, phone string) (domain.Customer, error) {
 	c, ok := f.customers[id]
 	if !ok {
 		return domain.Customer{}, application.ErrNotFound
-	}
-	if c.Version != expectedVersion {
-		return domain.Customer{}, application.ErrPreconditionFailed
 	}
 	for _, other := range f.customers {
 		if other.ID != id && other.Phone == phone {
@@ -131,7 +127,6 @@ func (f *fakeCustomerStore) UpdateCustomer(_ context.Context, id string, expecte
 	}
 	c.Name = name
 	c.Phone = phone
-	c.Version++
 	c.UpdatedAt = time.Now().UTC()
 	f.customers[id] = c
 	return c, nil

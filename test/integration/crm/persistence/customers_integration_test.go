@@ -34,14 +34,11 @@ func TestCustomerSearchPaginationAndUpdates(t *testing.T) {
 		t.Fatalf("pagination: total=%d len=%d err=%v", total, len(items), err)
 	}
 
-	updated, err := store.UpdateCustomer(ctx, c1.ID, c1.Version, "Ana Maria", c1.Phone)
-	if err != nil || updated.Version != 2 {
+	updated, err := store.UpdateCustomer(ctx, c1.ID, "Ana Maria", c1.Phone)
+	if err != nil || updated.Name != "Ana Maria" {
 		t.Fatalf("update keeping own phone: updated=%+v err=%v", updated, err)
 	}
-	if _, err := store.UpdateCustomer(ctx, c1.ID, 1, "Stale", c1.Phone); !errors.Is(err, application.ErrPreconditionFailed) {
-		t.Fatalf("expected ErrPreconditionFailed, got %v", err)
-	}
-	_, err = store.UpdateCustomer(ctx, c1.ID, updated.Version, "Conflict", c2.Phone)
+	_, err = store.UpdateCustomer(ctx, c1.ID, "Conflict", c2.Phone)
 	var dupErr application.DuplicatePhoneError
 	if !errors.As(err, &dupErr) || dupErr.Existing.ID != c2.ID {
 		t.Fatalf("expected DuplicatePhoneError(%s), got %v", c2.ID, err)

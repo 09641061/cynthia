@@ -18,7 +18,7 @@ import (
 type AssistantCalendarGateway struct {
 	db             *sql.DB
 	store          *postgres.Store
-	people         *postgres.PersonStore
+	people         application.PersonResolver
 	serviceReader  *catalog.ServiceReader
 	scheduleReader *organizations.ScheduleReader
 	now            func() time.Time
@@ -27,6 +27,7 @@ type AssistantCalendarGateway struct {
 // NewAssistantCalendarGateway creates an assistant calendar gateway backed by PostgreSQL and ACL readers.
 func NewAssistantCalendarGateway(
 	db *sharedpostgres.Client,
+	people application.PersonResolver,
 	serviceReader *catalog.ServiceReader,
 	scheduleReader *organizations.ScheduleReader,
 ) *AssistantCalendarGateway {
@@ -36,8 +37,8 @@ func NewAssistantCalendarGateway(
 	}
 	return &AssistantCalendarGateway{
 		db:             sqlDB,
-		store:          postgres.NewStore(sqlDB),
-		people:         postgres.NewPersonStore(sqlDB),
+		store:          postgres.NewStore(db),
+		people:         people,
 		serviceReader:  serviceReader,
 		scheduleReader: scheduleReader,
 		now:            time.Now,

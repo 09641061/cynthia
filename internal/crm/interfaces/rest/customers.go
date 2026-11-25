@@ -4,17 +4,12 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	sharedrest "go-service/internal/shared/rest"
 )
 
 func (h Handler) listCustomers(c *gin.Context) {
-	page, ok := queryInt(c, "page", 1)
-	if !ok {
-		return
-	}
-	pageSize, ok := queryInt(c, "page_size", 20)
-	if !ok {
-		return
-	}
+	page := sharedrest.QueryInt(c, "page", 1, 1, 100000)
+	pageSize := sharedrest.QueryInt(c, "page_size", 20, 1, 100)
 	result, err := h.customers.List(c.Request.Context(), c.Query("q"), page, pageSize)
 	if err != nil {
 		writeError(c, err)
@@ -26,7 +21,7 @@ func (h Handler) listCustomers(c *gin.Context) {
 
 func (h Handler) createCustomer(c *gin.Context) {
 	var input customerInput
-	if !bindJSON(c, &input) {
+	if !sharedrest.BindJSON(c, &input) {
 		return
 	}
 	created, err := h.customers.Create(c.Request.Context(), input.Name, input.Phone)
@@ -36,12 +31,11 @@ func (h Handler) createCustomer(c *gin.Context) {
 	}
 	c.Header("Cache-Control", "no-store")
 	c.Header("Location", "/v1/customers/"+created.ID)
-	c.Header("ETag", entityTag(created.Version))
 	c.JSON(http.StatusCreated, toCustomerResource(created))
 }
 
 func (h Handler) getCustomer(c *gin.Context) {
-	id, ok := pathID(c, "id")
+	id, ok := sharedrest.PathUUID(c, "id")
 	if !ok {
 		return
 	}
@@ -51,35 +45,29 @@ func (h Handler) getCustomer(c *gin.Context) {
 		return
 	}
 	c.Header("Cache-Control", "no-store")
-	c.Header("ETag", entityTag(customer.Version))
 	c.JSON(http.StatusOK, toCustomerResource(customer))
 }
 
 func (h Handler) updateCustomer(c *gin.Context) {
-	id, ok := pathID(c, "id")
-	if !ok {
-		return
-	}
-	version, ok := ifMatch(c)
+	id, ok := sharedrest.PathUUID(c, "id")
 	if !ok {
 		return
 	}
 	var input customerInput
-	if !bindJSON(c, &input) {
+	if !sharedrest.BindJSON(c, &input) {
 		return
 	}
-	updated, err := h.customers.Update(c.Request.Context(), id, version, input.Name, input.Phone)
+	updated, err := h.customers.Update(c.Request.Context(), id, input.Name, input.Phone)
 	if err != nil {
 		writeError(c, err)
 		return
 	}
 	c.Header("Cache-Control", "no-store")
-	c.Header("ETag", entityTag(updated.Version))
 	c.JSON(http.StatusOK, toCustomerResource(updated))
 }
 
 func (h Handler) deleteCustomer(c *gin.Context) {
-	id, ok := pathID(c, "id")
+	id, ok := sharedrest.PathUUID(c, "id")
 	if !ok {
 		return
 	}

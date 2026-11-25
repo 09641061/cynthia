@@ -35,9 +35,6 @@ func TestCreateCategory(t *testing.T) {
 	if got := recorder.Header().Get("Location"); got != "/v1/catalog/categories/"+store.created.ID {
 		t.Fatalf("Location = %q", got)
 	}
-	if got := recorder.Header().Get("ETag"); got != `"v1"` {
-		t.Fatalf("ETag = %q, want version 1", got)
-	}
 	if store.created.Name != "Hair" || store.created.SortOrder != 1 {
 		t.Fatalf("created category = %+v", store.created)
 	}
@@ -105,7 +102,6 @@ func TestCreateAndMoveService(t *testing.T) {
 	move := fmt.Sprintf(`{"category_id":%q,"sort_order":2}`, destinationID)
 	request = httptest.NewRequest(http.MethodPut, "/v1/catalog/services/"+store.createdService.ID+"/placement", strings.NewReader(move))
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("If-Match", `"v1"`)
 	recorder = httptest.NewRecorder()
 	routerForTest(store).ServeHTTP(recorder, request)
 	if recorder.Code != http.StatusOK || store.movedService.CategoryID != destinationID || store.movedService.SortOrder != 2 {

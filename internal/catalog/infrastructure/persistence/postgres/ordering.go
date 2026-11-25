@@ -56,7 +56,7 @@ func writeCategoryOrder(ctx context.Context, tx *sql.Tx, ids []string) error {
 		if positions[id] == position+1 {
 			continue
 		}
-		result, err := tx.ExecContext(ctx, `UPDATE catalog_categories SET sort_order = $2, version = version + 1,
+		result, err := tx.ExecContext(ctx, `UPDATE catalog_categories SET sort_order = $2,
 			updated_at = CURRENT_TIMESTAMP WHERE id = $1`, id, position+1)
 		if err != nil {
 			return fmt.Errorf("write category order: %w", err)
@@ -81,7 +81,7 @@ func writeServiceOrder(ctx context.Context, tx *sql.Tx, categoryID string, ids [
 		if positions[id] == position+1 {
 			continue
 		}
-		result, err := tx.ExecContext(ctx, `UPDATE catalog_services SET category_id = $2, sort_order = $3, version = version + 1,
+		result, err := tx.ExecContext(ctx, `UPDATE catalog_services SET category_id = $2, sort_order = $3,
 			updated_at = CURRENT_TIMESTAMP WHERE id = $1`, id, categoryID, position+1)
 		if err != nil {
 			return fmt.Errorf("write service order: %w", err)

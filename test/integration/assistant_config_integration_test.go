@@ -24,13 +24,9 @@ func TestAssistantConfigReaderIntegration(t *testing.T) {
 		t.Fatalf("expected default ai_enabled=false")
 	}
 
-	org, err := store.Get(ctx)
-	if err != nil {
-		t.Fatalf("get organization: %v", err)
-	}
 	enabled := true
 	instructions := "Always greet politely."
-	if _, err := store.Update(ctx, org.Version, domain.UpdatePatch{
+	if _, err := store.Update(ctx, domain.UpdatePatch{
 		AiEnabled:      &enabled,
 		AiInstructions: &instructions,
 	}); err != nil {

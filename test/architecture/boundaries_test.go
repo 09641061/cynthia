@@ -7,11 +7,12 @@ import (
 )
 
 func TestModuleDependencyBoundaries(t *testing.T) {
-	checkModuleBoundaries(t, "../../internal/catalog/...", []string{"/internal/crm", "/internal/organizations", "/internal/calendar", "/internal/assistant"})
-	checkModuleBoundaries(t, "../../internal/crm/...", []string{"/internal/catalog", "/internal/organizations", "/internal/calendar", "/internal/assistant"})
-	checkModuleBoundaries(t, "../../internal/organizations/...", []string{"/internal/catalog", "/internal/crm", "/internal/calendar", "/internal/assistant"})
-	checkModuleBoundaries(t, "../../internal/calendar/...", []string{"/internal/catalog", "/internal/crm", "/internal/organizations", "/internal/assistant"})
-	checkModuleBoundaries(t, "../../internal/assistant/...", []string{"/internal/catalog", "/internal/crm", "/internal/organizations", "/internal/calendar"})
+	checkModuleBoundaries(t, "../../internal/catalog/...", []string{"/internal/crm", "/internal/organizations", "/internal/calendar", "/internal/iam", "/internal/assistant"})
+	checkModuleBoundaries(t, "../../internal/crm/...", []string{"/internal/catalog", "/internal/organizations", "/internal/calendar", "/internal/iam", "/internal/assistant"})
+	checkModuleBoundaries(t, "../../internal/organizations/...", []string{"/internal/catalog", "/internal/crm", "/internal/calendar", "/internal/iam", "/internal/assistant"})
+	checkModuleBoundaries(t, "../../internal/calendar/...", []string{"/internal/catalog", "/internal/crm", "/internal/organizations", "/internal/iam", "/internal/assistant"})
+	checkModuleBoundaries(t, "../../internal/iam/...", []string{"/internal/catalog", "/internal/crm", "/internal/organizations", "/internal/calendar", "/internal/assistant"})
+	checkModuleBoundaries(t, "../../internal/assistant/...", []string{"/internal/catalog", "/internal/crm", "/internal/organizations", "/internal/calendar", "/internal/iam"})
 }
 
 func checkModuleBoundaries(t *testing.T, pattern string, forbiddenModules []string) {

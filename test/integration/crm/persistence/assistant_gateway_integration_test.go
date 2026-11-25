@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"go-service/internal/crm"
 	"go-service/internal/crm/domain"
+	"go-service/internal/shared/circuitbreaker"
 	sharedpostgres "go-service/internal/shared/postgres"
 )
 
@@ -24,8 +25,12 @@ func TestAssistantCRMGatewayIntegration(t *testing.T) {
 	store, db := newTestStore(t)
 	ctx := t.Context()
 
+	breaker, err := circuitbreaker.New(5, 30*time.Second)
+	if err != nil {
+		t.Fatalf("new breaker: %v", err)
+	}
 	router := gin.New()
-	gw := crm.NewModule(sharedpostgres.NewClient(db, nil), router, nil, nil)
+	gw := crm.NewModule(sharedpostgres.NewClient(db, breaker), router, nil, crm.WhatsAppConfig{}, nil)
 
 	cust, err := store.FindOrCreateCustomerByPhone(ctx, uuid.NewString(), "Ana", "+573001119988")
 	if err != nil {
@@ -97,11 +102,7 @@ func TestAssistantCRMGatewayIntegration(t *testing.T) {
 	if err := gw.PauseForHandoff(ctx, uuid.NewString(), "x"); !errors.Is(err, crm.ErrConversationNotFound) {
 		t.Fatalf("expected ErrConversationNotFound on PauseForHandoff, got %v", err)
 	}
-	latest, err := store.GetConversation(ctx, conv.ID)
-	if err != nil {
-		t.Fatalf("get latest conversation: %v", err)
-	}
-	if _, err := store.UpdateConversationStatus(ctx, conv.ID, latest.Version, domain.ConversationStatusClosed); err != nil {
+	if _, err := store.UpdateConversationStatus(ctx, conv.ID, domain.ConversationStatusClosed); err != nil {
 		t.Fatalf("close conversation: %v", err)
 	}
 	if _, err := gw.SendAssistantReply(ctx, conv.ID, "k-closed", "hi"); !errors.Is(err, crm.ErrConversationClosed) {

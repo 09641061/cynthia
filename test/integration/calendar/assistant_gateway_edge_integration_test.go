@@ -9,7 +9,9 @@ import (
 
 	"github.com/google/uuid"
 	"go-service/internal/calendar"
+	calendaracl "go-service/internal/calendar/infrastructure/acl"
 	"go-service/internal/catalog"
+	"go-service/internal/iam"
 	"go-service/internal/organizations"
 	"go-service/internal/shared/circuitbreaker"
 	sharedpostgres "go-service/internal/shared/postgres"
@@ -34,7 +36,7 @@ func TestAssistantGatewayEdgeCasesIntegration(t *testing.T) {
 		t.Fatalf("new breaker: %v", err)
 	}
 	client := sharedpostgres.NewClient(db, breaker)
-	gw := calendar.NewAssistantCalendarGateway(client, catalog.NewServiceReader(client), organizations.NewScheduleReader(client))
+	gw := calendar.NewAssistantCalendarGateway(client, calendaracl.NewPersonAdapter(iam.NewPersonReader(client)), catalog.NewServiceReader(client), organizations.NewScheduleReader(client))
 
 	loc, _ := time.LoadLocation("America/Bogota")
 	startAt := nextFutureMonday(loc)

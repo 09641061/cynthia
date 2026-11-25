@@ -9,7 +9,7 @@ import (
 )
 
 func (h Handler) createService(c *gin.Context) {
-	categoryID, ok := pathID(c, "id")
+	categoryID, ok := sharedrest.PathUUID(c, "id")
 	if !ok {
 		return
 	}
@@ -24,16 +24,11 @@ func (h Handler) createService(c *gin.Context) {
 	}
 	c.Header("Cache-Control", "no-store")
 	c.Header("Location", "/v1/catalog/services/"+service.ID)
-	c.Header("ETag", sharedrest.EntityTag(service.Version))
 	c.JSON(http.StatusCreated, service)
 }
 
 func (h Handler) updateService(c *gin.Context) {
-	id, ok := pathID(c, "id")
-	if !ok {
-		return
-	}
-	version, ok := sharedrest.IfMatch(c)
+	id, ok := sharedrest.PathUUID(c, "id")
 	if !ok {
 		return
 	}
@@ -41,26 +36,21 @@ func (h Handler) updateService(c *gin.Context) {
 	if !sharedrest.BindJSON(c, &request) {
 		return
 	}
-	service, err := h.catalog.UpdateService(c.Request.Context(), id, request.service(), version)
+	service, err := h.catalog.UpdateService(c.Request.Context(), id, request.service())
 	if err != nil {
 		writeError(c, err)
 		return
 	}
 	c.Header("Cache-Control", "no-store")
-	c.Header("ETag", sharedrest.EntityTag(service.Version))
 	c.JSON(http.StatusOK, service)
 }
 
 func (h Handler) deleteService(c *gin.Context) {
-	id, ok := pathID(c, "id")
+	id, ok := sharedrest.PathUUID(c, "id")
 	if !ok {
 		return
 	}
-	version, ok := sharedrest.IfMatch(c)
-	if !ok {
-		return
-	}
-	if err := h.catalog.DeleteService(c.Request.Context(), id, version); err != nil {
+	if err := h.catalog.DeleteService(c.Request.Context(), id); err != nil {
 		writeError(c, err)
 		return
 	}
@@ -69,11 +59,7 @@ func (h Handler) deleteService(c *gin.Context) {
 }
 
 func (h Handler) moveService(c *gin.Context) {
-	id, ok := pathID(c, "id")
-	if !ok {
-		return
-	}
-	version, ok := sharedrest.IfMatch(c)
+	id, ok := sharedrest.PathUUID(c, "id")
 	if !ok {
 		return
 	}
@@ -81,17 +67,16 @@ func (h Handler) moveService(c *gin.Context) {
 	if !sharedrest.BindJSON(c, &request) {
 		return
 	}
-	categoryID, ok := normalizeID(request.CategoryID)
+	categoryID, ok := sharedrest.ParseUUID(request.CategoryID)
 	if !ok {
 		badRequest(c)
 		return
 	}
-	service, err := h.catalog.MoveService(c.Request.Context(), id, categoryID, request.SortOrder, version)
+	service, err := h.catalog.MoveService(c.Request.Context(), id, categoryID, request.SortOrder)
 	if err != nil {
 		writeError(c, err)
 		return
 	}
 	c.Header("Cache-Control", "no-store")
-	c.Header("ETag", sharedrest.EntityTag(service.Version))
 	c.JSON(http.StatusOK, service)
 }

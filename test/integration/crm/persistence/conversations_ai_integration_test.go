@@ -36,41 +36,37 @@ func TestConversationAIAndReopenReset(t *testing.T) {
 		t.Fatalf("expected fresh conversation unpaused, got %+v", conv)
 	}
 
-	if _, err := store.UpdateConversationAI(ctx, uuid.NewString(), 1, true, "manual_pause"); !errors.Is(err, application.ErrNotFound) {
+	if _, err := store.UpdateConversationAI(ctx, uuid.NewString(), true, "manual_pause"); !errors.Is(err, application.ErrNotFound) {
 		t.Fatalf("expected ErrNotFound, got %v", err)
 	}
-	if _, err := store.UpdateConversationAI(ctx, conv.ID, conv.Version+5, true, "manual_pause"); !errors.Is(err, application.ErrPreconditionFailed) {
-		t.Fatalf("expected ErrPreconditionFailed, got %v", err)
-	}
 
-	conv, err = store.UpdateConversationAI(ctx, conv.ID, conv.Version, true, "manual_pause")
+	conv, err = store.UpdateConversationAI(ctx, conv.ID, true, "manual_pause")
 	if err != nil || !conv.AiPaused || conv.HandoffReason != "manual_pause" {
 		t.Fatalf("expected paused conversation, got (%+v, %v)", conv, err)
 	}
 
 	// open -> open preserves ai_paused and handoff_reason.
-	conv, err = store.UpdateConversationStatus(ctx, conv.ID, conv.Version, domain.ConversationStatusOpen)
+	conv, err = store.UpdateConversationStatus(ctx, conv.ID, domain.ConversationStatusOpen)
 	if err != nil || !conv.AiPaused || conv.HandoffReason != "manual_pause" {
 		t.Fatalf("expected open -> open to preserve AI state, got (%+v, %v)", conv, err)
 	}
 
 	// Close then reopen via UpdateConversationStatus -> resets ai_paused and handoff_reason.
-	conv, err = store.UpdateConversationStatus(ctx, conv.ID, conv.Version, domain.ConversationStatusClosed)
+	conv, err = store.UpdateConversationStatus(ctx, conv.ID, domain.ConversationStatusClosed)
 	if err != nil || !conv.AiPaused {
 		t.Fatalf("expected close to preserve ai_paused, got (%+v, %v)", conv, err)
 	}
-	conv, err = store.UpdateConversationStatus(ctx, conv.ID, conv.Version, domain.ConversationStatusOpen)
+	conv, err = store.UpdateConversationStatus(ctx, conv.ID, domain.ConversationStatusOpen)
 	if err != nil || conv.AiPaused || conv.HandoffReason != "" {
 		t.Fatalf("expected reopen via UpdateConversationStatus to reset AI state, got (%+v, %v)", conv, err)
 	}
 
-	// SetConversationAIPaused (versionless) + close + reopen via EnsureOpenConversation -> resets AI state.
-	prevVersion := conv.Version
+	// SetConversationAIPaused + close + reopen via EnsureOpenConversation -> resets AI state.
 	conv, err = store.SetConversationAIPaused(ctx, conv.ID, true, "staff_replied")
-	if err != nil || !conv.AiPaused || conv.HandoffReason != "staff_replied" || conv.Version != prevVersion+1 {
+	if err != nil || !conv.AiPaused || conv.HandoffReason != "staff_replied" {
 		t.Fatalf("unexpected SetConversationAIPaused result: (%+v, %v)", conv, err)
 	}
-	conv, err = store.UpdateConversationStatus(ctx, conv.ID, conv.Version, domain.ConversationStatusClosed)
+	conv, err = store.UpdateConversationStatus(ctx, conv.ID, domain.ConversationStatusClosed)
 	if err != nil {
 		t.Fatalf("close conversation: %v", err)
 	}

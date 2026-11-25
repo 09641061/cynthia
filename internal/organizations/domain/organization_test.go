@@ -23,7 +23,6 @@ func baseOrg() Organization {
 			Thursday: openDay, Friday: openDay, Saturday: closedDay, Sunday: closedDay,
 		},
 		AiInstructions: "Be polite.",
-		Version:        1,
 	}
 }
 

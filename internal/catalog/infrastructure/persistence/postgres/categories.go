@@ -23,21 +23,18 @@ func (s *Store) CreateCategory(ctx context.Context, name string) (category domai
 			return fmt.Errorf("generate category id: %w", err)
 		}
 		return tx.QueryRowContext(ctx, `INSERT INTO catalog_categories (id, name, sort_order)
-			VALUES ($1, $2, $3) RETURNING id, name, sort_order, version, created_at, updated_at`, id, name, position).
-			Scan(&category.ID, &category.Name, &category.SortOrder, &category.Version, &category.CreatedAt, &category.UpdatedAt)
+			VALUES ($1, $2, $3) RETURNING id, name, sort_order, created_at, updated_at`, id, name, position).
+			Scan(&category.ID, &category.Name, &category.SortOrder, &category.CreatedAt, &category.UpdatedAt)
 	})
 	return category, persistenceError(err)
 }
 
-func (s *Store) UpdateCategory(ctx context.Context, id, name string, version int64) (category domain.Category, err error) {
+func (s *Store) UpdateCategory(ctx context.Context, id, name string) (category domain.Category, err error) {
 	err = s.write(ctx, func(tx *sql.Tx) error {
-		if err := checkCategoryVersion(ctx, tx, id, version); err != nil {
-			return err
-		}
-		if err := tx.QueryRowContext(ctx, `UPDATE catalog_categories SET name = $2, version = version + 1,
-			updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND version = $3
-			RETURNING id, name, sort_order, version, created_at, updated_at`, id, name, version).
-			Scan(&category.ID, &category.Name, &category.SortOrder, &category.Version, &category.CreatedAt, &category.UpdatedAt); err != nil {
+		if err := tx.QueryRowContext(ctx, `UPDATE catalog_categories SET name = $2,
+			updated_at = CURRENT_TIMESTAMP WHERE id = $1
+			RETURNING id, name, sort_order, created_at, updated_at`, id, name).
+			Scan(&category.ID, &category.Name, &category.SortOrder, &category.CreatedAt, &category.UpdatedAt); err != nil {
 			return err
 		}
 		services, err := categoryServices(ctx, tx, id)
@@ -53,12 +50,9 @@ func (s *Store) UpdateCategory(ctx context.Context, id, name string, version int
 	return category, persistenceError(err)
 }
 
-func (s *Store) DeleteCategory(ctx context.Context, id string, version int64) error {
+func (s *Store) DeleteCategory(ctx context.Context, id string) error {
 	err := s.write(ctx, func(tx *sql.Tx) error {
-		if err := checkCategoryVersion(ctx, tx, id, version); err != nil {
-			return err
-		}
-		result, err := tx.ExecContext(ctx, `DELETE FROM catalog_categories WHERE id = $1 AND version = $2`, id, version)
+		result, err := tx.ExecContext(ctx, `DELETE FROM catalog_categories WHERE id = $1`, id)
 		if err != nil {
 			return fmt.Errorf("delete catalog category: %w", err)
 		}
@@ -74,10 +68,14 @@ func (s *Store) DeleteCategory(ctx context.Context, id string, version int64) er
 	return persistenceError(err)
 }
 
-func (s *Store) MoveCategory(ctx context.Context, id string, position int, version int64) (category domain.Category, err error) {
+func (s *Store) MoveCategory(ctx context.Context, id string, position int) (category domain.Category, err error) {
 	err = s.write(ctx, func(tx *sql.Tx) error {
-		if err := checkCategoryVersion(ctx, tx, id, version); err != nil {
-			return err
+		var exists bool
+		if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM catalog_categories WHERE id = $1)`, id).Scan(&exists); err != nil {
+			return fmt.Errorf("check catalog category: %w", err)
+		}
+		if !exists {
+			return application.ErrNotFound
 		}
 		ids, err := categoryIDs(ctx, tx)
 		if err != nil {
@@ -90,9 +88,9 @@ func (s *Store) MoveCategory(ctx context.Context, id string, position int, versi
 		if err := writeCategoryOrder(ctx, tx, ids); err != nil {
 			return err
 		}
-		if err := tx.QueryRowContext(ctx, `SELECT id, name, sort_order, version, created_at, updated_at
+		if err := tx.QueryRowContext(ctx, `SELECT id, name, sort_order, created_at, updated_at
 			FROM catalog_categories WHERE id = $1`, id).Scan(&category.ID, &category.Name, &category.SortOrder,
-			&category.Version, &category.CreatedAt, &category.UpdatedAt); err != nil {
+			&category.CreatedAt, &category.UpdatedAt); err != nil {
 			return err
 		}
 		category.Services, err = categoryServices(ctx, tx, id)
@@ -102,20 +100,6 @@ func (s *Store) MoveCategory(ctx context.Context, id string, position int, versi
 		return category, application.ErrNotFound
 	}
 	return category, persistenceError(err)
-}
-
-func checkCategoryVersion(ctx context.Context, tx *sql.Tx, id string, expected int64) error {
-	var current int64
-	if err := tx.QueryRowContext(ctx, `SELECT version FROM catalog_categories WHERE id = $1`, id).Scan(&current); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return application.ErrNotFound
-		}
-		return fmt.Errorf("read category version: %w", err)
-	}
-	if current != expected {
-		return application.ErrPreconditionFailed
-	}
-	return nil
 }
 
 func requireAffected(result sql.Result) error {

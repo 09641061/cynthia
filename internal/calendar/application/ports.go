@@ -21,8 +21,8 @@ type AppointmentStore interface {
 	ListAppointments(ctx context.Context, filter AppointmentFilter) ([]domain.Appointment, error)
 	GetAppointment(ctx context.Context, id string) (domain.Appointment, error)
 	CreateAppointment(ctx context.Context, appt domain.Appointment) (domain.Appointment, error)
-	UpdateAppointment(ctx context.Context, expectedVersion int64, appt domain.Appointment) (domain.Appointment, error)
-	DeleteAppointment(ctx context.Context, id string, expectedVersion int64) error
+	UpdateAppointment(ctx context.Context, appt domain.Appointment) (domain.Appointment, error)
+	DeleteAppointment(ctx context.Context, id string) error
 }
 
 // PersonResolver resolves bookable people in the calendar context.

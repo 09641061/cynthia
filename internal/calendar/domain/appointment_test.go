@@ -20,7 +20,7 @@ func TestNewAppointmentDefaultsAndValidation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewAppointment failed: %v", err)
 	}
-	if appt.Status != domain.StatusPending || appt.Channel != domain.ChannelManual || appt.Version != 1 {
+	if appt.Status != domain.StatusPending || appt.Channel != domain.ChannelManual {
 		t.Fatalf("unexpected defaults: %+v", appt)
 	}
 	if appt.StartsAt.Location() != time.UTC || appt.EndsAt.Location() != time.UTC {

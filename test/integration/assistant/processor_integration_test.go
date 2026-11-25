@@ -19,8 +19,10 @@ import (
 	"go-service/internal/assistant/infrastructure/deepseek"
 	"go-service/internal/assistant/infrastructure/postgres"
 	"go-service/internal/calendar"
+	calendaracl "go-service/internal/calendar/infrastructure/acl"
 	"go-service/internal/catalog"
 	"go-service/internal/crm"
+	"go-service/internal/iam"
 	"go-service/internal/organizations"
 )
 
@@ -73,10 +75,10 @@ func TestProcessorEndToEndServiceQAAndBookingLifecycle(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	crmGW := crm.NewModule(client, gin.New(), organizations.NewWhatsAppConfigReader(client), nil)
+	crmGW := crm.NewModule(client, gin.New(), organizations.NewWhatsAppConfigReader(client), crm.WhatsAppConfig{}, nil)
 	recCRM := &recordingCRM{CRMGateway: acl.NewCRMAdapter(crmGW)}
 	svcReader := catalog.NewServiceReader(client)
-	calGW := calendar.NewAssistantCalendarGateway(client, svcReader, organizations.NewScheduleReader(client))
+	calGW := calendar.NewAssistantCalendarGateway(client, calendaracl.NewPersonAdapter(iam.NewPersonReader(client)), svcReader, organizations.NewScheduleReader(client))
 	jobStore := postgres.NewJobStore(client.DB)
 	proc := application.NewProcessor(
 		jobStore,

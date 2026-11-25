@@ -73,6 +73,7 @@ func seedAssistantFixtures(t *testing.T, db *sql.DB) seedData {
 		otherCust: uuid.NewString(), serviceID: uuid.NewString(), personID: uuid.NewString(),
 	}
 	catID := uuid.NewString()
+	roleID := uuid.NewString()
 	stmts := []struct {
 		q    string
 		args []any
@@ -83,7 +84,9 @@ func seedAssistantFixtures(t *testing.T, db *sql.DB) seedData {
 		{`INSERT INTO crm_messages (id, conversation_id, direction, content, status, created_at) VALUES ($1, $2, 'outbound', 'Hola, en que te ayudo?', 'sent', NOW() - INTERVAL '2 minute'), ($3, $2, 'inbound', 'Quiero agendar', 'received', NOW() - INTERVAL '1 minute')`, []any{uuid.NewString(), s.convID, uuid.NewString()}},
 		{`INSERT INTO catalog_categories (id, name, sort_order) VALUES ($1, 'Hair', 1)`, []any{catID}},
 		{`INSERT INTO catalog_services (id, category_id, name, duration_minutes, price_minor_units, sort_order) VALUES ($1, $2, 'Haircut', 30, 3000, 1)`, []any{s.serviceID, catID}},
-		{`INSERT INTO calendar_people (id, name, active) VALUES ($1, 'Stylist Ana', TRUE)`, []any{s.personID}},
+		{`INSERT INTO iam_users (id, email, first_name, last_name, password_hash, type) VALUES ($1, 'ana@test.local', 'Stylist', 'Ana', 'hash', 'owner')`, []any{s.personID}},
+		{`INSERT INTO iam_roles (id, name, position, permissions) VALUES ($1, 'Staff', 1, ARRAY['scheduling.appear'])`, []any{roleID}},
+		{`INSERT INTO iam_member_roles (user_id, role_id) VALUES ($1, $2)`, []any{s.personID, roleID}},
 	}
 	for _, st := range stmts {
 		if _, err := db.ExecContext(ctx, st.q, st.args...); err != nil {

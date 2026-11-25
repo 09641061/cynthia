@@ -24,31 +24,22 @@ func (s *stubConvStore) GetConversation(_ context.Context, id string) (domain.Co
 	}
 	return s.conv, nil
 }
-func (s *stubConvStore) UpdateConversationStatus(_ context.Context, _ string, expected int64, status string) (domain.Conversation, error) {
-	if s.conv.Version != expected {
-		return domain.Conversation{}, application.ErrPreconditionFailed
-	}
+func (s *stubConvStore) UpdateConversationStatus(_ context.Context, _ string, status string) (domain.Conversation, error) {
 	if s.conv.Status == domain.ConversationStatusClosed && status == domain.ConversationStatusOpen {
 		s.conv.AiPaused = false
 		s.conv.HandoffReason = ""
 	}
 	s.conv.Status = status
-	s.conv.Version++
 	return s.conv, nil
 }
-func (s *stubConvStore) UpdateConversationAI(_ context.Context, _ string, expected int64, aiPaused bool, reason string) (domain.Conversation, error) {
-	if s.conv.Version != expected {
-		return domain.Conversation{}, application.ErrPreconditionFailed
-	}
+func (s *stubConvStore) UpdateConversationAI(_ context.Context, _ string, aiPaused bool, reason string) (domain.Conversation, error) {
 	s.conv.AiPaused = aiPaused
 	s.conv.HandoffReason = reason
-	s.conv.Version++
 	return s.conv, nil
 }
 func (s *stubConvStore) SetConversationAIPaused(_ context.Context, _ string, aiPaused bool, reason string) (domain.Conversation, error) {
 	s.conv.AiPaused = aiPaused
 	s.conv.HandoffReason = reason
-	s.conv.Version++
 	return s.conv, nil
 }
 func (s *stubConvStore) EnsureOpenConversation(context.Context, string) (domain.Conversation, error) {
@@ -83,7 +74,7 @@ func (s *stubConvStore) InsertInboundMessage(_ context.Context, m domain.Message
 	return m, true, nil
 }
 func (s *stubConvStore) FindOrCreateCustomerByPhone(_ context.Context, id, name, phone string) (domain.Customer, error) {
-	return domain.Customer{ID: id, Name: name, Phone: phone, Version: 1}, nil
+	return domain.Customer{ID: id, Name: name, Phone: phone}, nil
 }
 
 type stubSender struct {

@@ -19,7 +19,6 @@ type Conversation struct {
 	Status             string
 	AiPaused           bool
 	HandoffReason      string
-	Version            int64
 	LastMessageAt      *time.Time
 	LastMessagePreview *string
 	CreatedAt          time.Time

@@ -1,8 +1,6 @@
 package calendar
 
 import (
-	"database/sql"
-
 	"github.com/gin-gonic/gin"
 	"go-service/internal/calendar/application"
 	"go-service/internal/calendar/infrastructure/acl"
@@ -23,14 +21,7 @@ func NewModule(
 	serviceReader *catalog.ServiceReader,
 	scheduleReader *organizations.ScheduleReader,
 ) {
-	var sqlDB *sql.DB
-	if db != nil {
-		sqlDB = db.DB
-	}
-	store := postgres.NewStore(sqlDB)
-	if personResolver == nil && sqlDB != nil {
-		personResolver = postgres.NewPersonStore(sqlDB)
-	}
+	store := postgres.NewStore(db)
 	service := application.NewService(
 		store,
 		personResolver,

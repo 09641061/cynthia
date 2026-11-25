@@ -12,6 +12,7 @@ import (
 	"go-service/internal/bootstrap/config"
 	"go-service/internal/shared/circuitbreaker"
 	"go-service/internal/shared/postgres"
+	sharedredis "go-service/internal/shared/redis"
 )
 
 // Run loads configuration, initializes dependencies and serves requests until cancellation.
@@ -34,12 +35,24 @@ func Run(ctx context.Context) (resultErr error) {
 	if err := postgres.Migrate(startupCtx, db, cfg.MigrationsDir); err != nil {
 		return fmt.Errorf("migrate database: %w", err)
 	}
+	redisClient, err := sharedredis.Open(startupCtx, cfg.RedisURL)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := redisClient.Close(); err != nil {
+			resultErr = errors.Join(resultErr, fmt.Errorf("close Redis connection: %w", err))
+		}
+	}()
 	breaker, err := circuitbreaker.New(5, 30*time.Second)
 	if err != nil {
 		return fmt.Errorf("configure PostgreSQL circuit breaker: %w", err)
 	}
 	client := postgres.NewClient(db, breaker)
-	router, startWorker := newApp(client, cfg)
+	router, startWorker, err := newApp(client, redisClient, cfg)
+	if err != nil {
+		return fmt.Errorf("configure HTTP router: %w", err)
+	}
 	if client != nil && strings.TrimSpace(cfg.DeepSeekAPIKey) != "" {
 		workerCtx, cancelWorker := context.WithCancel(ctx)
 		var wg sync.WaitGroup

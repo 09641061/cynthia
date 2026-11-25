@@ -69,7 +69,7 @@ func (g *AssistantCalendarGateway) RescheduleWhatsAppAppointment(ctx context.Con
 	var res AssistantAppointment
 	err = tx.QueryRowContext(ctx,
 		`UPDATE calendar_appointments
-		 SET person_id = $1, service_id = $2, starts_at = $3, ends_at = $4, version = version + 1, updated_at = CURRENT_TIMESTAMP
+		 SET person_id = $1, service_id = $2, starts_at = $3, ends_at = $4, updated_at = CURRENT_TIMESTAMP
 		 WHERE id = $5 AND customer_id = $6 AND status IN ('pending', 'confirmed') AND starts_at > NOW()
 		 RETURNING id, service_id, person_id, starts_at, ends_at, status`,
 		targetPerson, targetService, targetStart.UTC(), targetEnd.UTC(), in.AppointmentID, in.CustomerID,
@@ -94,7 +94,7 @@ func (g *AssistantCalendarGateway) CancelWhatsAppAppointment(ctx context.Context
 	var res AssistantAppointment
 	err := g.db.QueryRowContext(ctx,
 		`UPDATE calendar_appointments
-		 SET status = 'cancelled', version = version + 1, updated_at = CURRENT_TIMESTAMP
+		 SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP
 		 WHERE id = $1 AND customer_id = $2 AND status IN ('pending', 'confirmed') AND starts_at > NOW()
 		 RETURNING id, service_id, person_id, starts_at, ends_at, status`,
 		appointmentID, customerID,

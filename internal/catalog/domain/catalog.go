@@ -26,7 +26,6 @@ type Category struct {
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`
 	SortOrder int       `json:"sort_order"`
-	Version   int64     `json:"version"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Services  []Service `json:"services"`
@@ -40,7 +39,6 @@ type Service struct {
 	DurationMinute int       `json:"duration_minutes"`
 	PriceMinor     int64     `json:"price_minor_units"`
 	SortOrder      int       `json:"sort_order"`
-	Version        int64     `json:"version"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 }

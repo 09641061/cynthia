@@ -31,7 +31,7 @@ func (s *stubMsgStore) GetCustomerByPhone(context.Context, string) (domain.Custo
 func (s *stubMsgStore) CreateCustomer(context.Context, domain.Customer) (domain.Customer, error) {
 	return s.customer, nil
 }
-func (s *stubMsgStore) UpdateCustomer(context.Context, string, int64, string, string) (domain.Customer, error) {
+func (s *stubMsgStore) UpdateCustomer(context.Context, string, string, string) (domain.Customer, error) {
 	return s.customer, nil
 }
 func (s *stubMsgStore) DeleteCustomer(context.Context, string) error { return nil }
@@ -44,10 +44,10 @@ func (s *stubMsgStore) ListConversations(context.Context, application.Conversati
 func (s *stubMsgStore) GetConversation(context.Context, string) (domain.Conversation, error) {
 	return s.conv, nil
 }
-func (s *stubMsgStore) UpdateConversationStatus(context.Context, string, int64, string) (domain.Conversation, error) {
+func (s *stubMsgStore) UpdateConversationStatus(context.Context, string, string) (domain.Conversation, error) {
 	return s.conv, nil
 }
-func (s *stubMsgStore) UpdateConversationAI(_ context.Context, _ string, _ int64, aiPaused bool, reason string) (domain.Conversation, error) {
+func (s *stubMsgStore) UpdateConversationAI(_ context.Context, _ string, aiPaused bool, reason string) (domain.Conversation, error) {
 	s.conv.AiPaused = aiPaused
 	s.conv.HandoffReason = reason
 	return s.conv, nil

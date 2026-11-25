@@ -14,7 +14,7 @@ func TestAssistantCRMGatewayNilAndNilDBGuard(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	ctx := context.Background()
 	var nilGW *AssistantCRMGateway
-	nilDBGW := NewModule(nil, gin.New(), nil, nil)
+	nilDBGW := NewModule(nil, gin.New(), nil, WhatsAppConfig{}, nil)
 
 	for name, gw := range map[string]*AssistantCRMGateway{"nil_receiver": nilGW, "nil_db": nilDBGW} {
 		if _, err := gw.GetConversation(ctx, "c1"); !errors.Is(err, ErrGatewayUnavailable) {

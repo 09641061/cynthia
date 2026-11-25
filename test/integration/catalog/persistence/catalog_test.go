@@ -29,8 +29,7 @@ func TestMovePreservesIdentityAndRenumbersBothLists(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create second service: %v", err)
 	}
-	movedService, err := store.MoveService(ctx, first.ID, target.ID, 1, first.Version)
-	if err != nil {
+	if _, err := store.MoveService(ctx, first.ID, target.ID, 1); err != nil {
 		t.Fatalf("move service: %v", err)
 	}
 	categories, err := store.List(ctx)
@@ -44,7 +43,7 @@ func TestMovePreservesIdentityAndRenumbersBothLists(t *testing.T) {
 	if len(moved) != 1 || moved[0].ID != first.ID || moved[0].CategoryID != target.ID || moved[0].SortOrder != 1 {
 		t.Fatalf("destination list mismatch: %+v", moved)
 	}
-	if _, err := store.MoveService(ctx, first.ID, target.ID, 0, movedService.Version); !errors.Is(err, domain.ErrInvalid) {
+	if _, err := store.MoveService(ctx, first.ID, target.ID, 0); !errors.Is(err, domain.ErrInvalid) {
 		t.Fatalf("invalid move error = %v, want ErrInvalid", err)
 	}
 	categories, err = store.List(ctx)
@@ -88,7 +87,7 @@ func TestConcurrentMovesAndCategoryCascade(t *testing.T) {
 		go func() {
 			defer workers.Done()
 			<-start
-			_, err := store.MoveService(ctx, service.ID, target.ID, 1, service.Version)
+			_, err := store.MoveService(ctx, service.ID, target.ID, 1)
 			errorsFound <- err
 		}()
 	}
@@ -107,11 +106,10 @@ func TestConcurrentMovesAndCategoryCascade(t *testing.T) {
 	if len(categories) != 3 || len(categories[0].Services) != 0 || len(categories[1].Services) != 0 || len(categories[2].Services) != 2 || categories[2].Services[0].SortOrder != 1 || categories[2].Services[1].SortOrder != 2 {
 		t.Fatalf("concurrent moves left inconsistent order: %+v", categories)
 	}
-	movedCategory, err := store.MoveCategory(ctx, target.ID, 1, target.Version)
-	if err != nil {
+	if _, err := store.MoveCategory(ctx, target.ID, 1); err != nil {
 		t.Fatalf("move category: %v", err)
 	}
-	if err := store.DeleteCategory(ctx, target.ID, movedCategory.Version); err != nil {
+	if err := store.DeleteCategory(ctx, target.ID); err != nil {
 		t.Fatalf("delete category: %v", err)
 	}
 	categories, err = store.List(ctx)

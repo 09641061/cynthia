@@ -61,8 +61,6 @@ func writeError(c *gin.Context, err error) {
 		writeProblem(c, http.StatusNotFound, "Not Found", "The requested CRM resource does not exist.")
 	case errors.Is(err, application.ErrConflict):
 		writeProblem(c, http.StatusConflict, "Conflict", "The CRM state conflicts with this operation.")
-	case errors.Is(err, application.ErrPreconditionFailed):
-		writeProblem(c, http.StatusPreconditionFailed, "Precondition Failed", "The CRM resource has changed.")
 	case errors.Is(err, domain.ErrInvalid):
 		writeProblem(c, http.StatusUnprocessableEntity, "Unprocessable Content", "The CRM data is invalid.")
 	default:

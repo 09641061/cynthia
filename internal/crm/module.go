@@ -1,8 +1,6 @@
 package crm
 
 import (
-	"database/sql"
-
 	"github.com/gin-gonic/gin"
 	"go-service/internal/crm/application"
 	"go-service/internal/crm/infrastructure/persistence/postgres"
@@ -11,31 +9,34 @@ import (
 	sharedpostgres "go-service/internal/shared/postgres"
 )
 
+// WhatsAppConfig holds Meta WhatsApp Cloud API settings injected at startup.
+type WhatsAppConfig = whatsapp.Config
+
+// InboundHook receives notifications when a new inbound message is persisted.
+type InboundHook = application.InboundHook
+
 // NewModule initializes the CRM module, registers its routes, and returns the assistant CRM gateway.
 func NewModule(
 	db *sharedpostgres.Client,
 	router gin.IRouter,
 	configReader application.WhatsAppConfigReader,
-	inboundHook application.InboundHook,
+	waCfg WhatsAppConfig,
+	inboundHook InboundHook,
 ) *AssistantCRMGateway {
-	var sqlDB *sql.DB
-	if db != nil {
-		sqlDB = db.DB
-	}
-	store := postgres.NewStore(sqlDB)
+	store := postgres.NewStore(db)
 	broker := application.NewEventBroker()
 	customers := application.NewCustomerService(store)
 	conversations := application.NewConversationService(store, store)
 	conversations.SetEventPublisher(broker)
-	messages := application.NewMessageService(store, store, store, store, whatsapp.NewClient(), configReader)
+	messages := application.NewMessageService(store, store, store, store, whatsapp.NewClient(waCfg), configReader)
 	messages.SetEventPublisher(broker)
 	messages.SetInboundHook(inboundHook)
-	rest.RegisterRoutes(router.Group("/v1"), customers, conversations, messages, whatsapp.NewVerifier(), broker)
+	rest.RegisterRoutes(router.Group("/v1"), customers, conversations, messages, whatsapp.NewVerifier(waCfg), broker)
 	return &AssistantCRMGateway{
 		store:         store,
 		broker:        broker,
 		conversations: conversations,
 		messages:      messages,
-		hasDB:         sqlDB != nil,
+		hasDB:         db != nil,
 	}
 }

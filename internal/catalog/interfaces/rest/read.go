@@ -19,7 +19,7 @@ func (h Handler) list(c *gin.Context) {
 }
 
 func (h Handler) getCategory(c *gin.Context) {
-	id, ok := pathID(c, "id")
+	id, ok := sharedrest.PathUUID(c, "id")
 	if !ok {
 		return
 	}
@@ -29,12 +29,11 @@ func (h Handler) getCategory(c *gin.Context) {
 		return
 	}
 	c.Header("Cache-Control", "no-store")
-	c.Header("ETag", sharedrest.EntityTag(category.Version))
 	c.JSON(http.StatusOK, category)
 }
 
 func (h Handler) getService(c *gin.Context) {
-	id, ok := pathID(c, "id")
+	id, ok := sharedrest.PathUUID(c, "id")
 	if !ok {
 		return
 	}
@@ -44,6 +43,5 @@ func (h Handler) getService(c *gin.Context) {
 		return
 	}
 	c.Header("Cache-Control", "no-store")
-	c.Header("ETag", sharedrest.EntityTag(service.Version))
 	c.JSON(http.StatusOK, service)
 }

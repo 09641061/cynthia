@@ -75,11 +75,14 @@ func seedRefs(t *testing.T, ctx context.Context, db *sql.DB) seededRefs {
 		serviceID:  uuid.NewString(),
 	}
 	catID := uuid.NewString()
+	roleID := uuid.NewString()
 	queries := []struct {
 		sql  string
 		args []any
 	}{
-		{`INSERT INTO calendar_people (id, name, active) VALUES ($1, 'Lucia', true), ($2, 'Elena', true)`, []any{refs.personA, refs.personB}},
+		{`INSERT INTO iam_users (id, email, first_name, last_name, password_hash, type) VALUES ($1, 'lucia@test.local', 'Lucia', 'Mendez', 'hash', 'owner'), ($2, 'elena@test.local', 'Elena', 'Cruz', 'hash', 'user')`, []any{refs.personA, refs.personB}},
+		{`INSERT INTO iam_roles (id, name, position, permissions) VALUES ($1, 'Staff', 1, ARRAY['scheduling.appear'])`, []any{roleID}},
+		{`INSERT INTO iam_member_roles (user_id, role_id) VALUES ($1, $3), ($2, $3)`, []any{refs.personA, refs.personB, roleID}},
 		{`INSERT INTO crm_customers (id, name, phone) VALUES ($1, 'Ana', '+573001112233')`, []any{refs.customerID}},
 		{`INSERT INTO catalog_categories (id, name, sort_order) VALUES ($1, 'Hair', 1)`, []any{catID}},
 		{`INSERT INTO catalog_services (id, category_id, name, duration_minutes, price_minor_units, sort_order) VALUES ($1, $2, 'Cut', 30, 50000, 1)`, []any{refs.serviceID, catID}},

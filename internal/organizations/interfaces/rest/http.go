@@ -22,8 +22,6 @@ func writeError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, application.ErrNotFound):
 		sharedrest.WriteProblem(c, http.StatusNotFound, "Not Found", "The organization profile does not exist.")
-	case errors.Is(err, application.ErrPreconditionFailed):
-		sharedrest.WriteProblem(c, http.StatusPreconditionFailed, "Precondition Failed", "The organization profile has changed.")
 	case errors.Is(err, domain.ErrInvalid):
 		sharedrest.WriteProblem(c, http.StatusUnprocessableEntity, "Unprocessable Content", "The organization data is invalid.")
 	default:

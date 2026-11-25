@@ -35,9 +35,9 @@ func (s *Store) CreateService(ctx context.Context, categoryID string, service do
 		if err := tx.QueryRowContext(ctx, `INSERT INTO catalog_services
 			(id, category_id, name, duration_minutes, price_minor_units, sort_order)
 			VALUES ($1,$2,$3,$4,$5,$6)
-			RETURNING version, created_at, updated_at`, created.ID, categoryID, service.Name,
+			RETURNING created_at, updated_at`, created.ID, categoryID, service.Name,
 			service.DurationMinute, service.PriceMinor,
-			created.SortOrder).Scan(&created.Version, &created.CreatedAt, &created.UpdatedAt); err != nil {
+			created.SortOrder).Scan(&created.CreatedAt, &created.UpdatedAt); err != nil {
 			return fmt.Errorf("create catalog service: %w", err)
 		}
 		ids = insertAt(ids, created.ID, position-1)
@@ -46,19 +46,16 @@ func (s *Store) CreateService(ctx context.Context, categoryID string, service do
 	return created, persistenceError(err)
 }
 
-func (s *Store) UpdateService(ctx context.Context, id string, service domain.Service, version int64) (updated domain.Service, err error) {
+func (s *Store) UpdateService(ctx context.Context, id string, service domain.Service) (updated domain.Service, err error) {
 	err = s.write(ctx, func(tx *sql.Tx) error {
-		if err := checkServiceVersion(ctx, tx, id, version); err != nil {
-			return err
-		}
 		return tx.QueryRowContext(ctx, `UPDATE catalog_services SET name = $2,
-			duration_minutes = $3, price_minor_units = $4, version = version + 1,
-			updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND version = $5
+			duration_minutes = $3, price_minor_units = $4,
+			updated_at = CURRENT_TIMESTAMP WHERE id = $1
 			RETURNING id, category_id, name, duration_minutes, price_minor_units,
-			sort_order, version, created_at, updated_at`, id, service.Name,
-			service.DurationMinute, service.PriceMinor, version).
+			sort_order, created_at, updated_at`, id, service.Name,
+			service.DurationMinute, service.PriceMinor).
 			Scan(&updated.ID, &updated.CategoryID, &updated.Name, &updated.DurationMinute,
-				&updated.PriceMinor, &updated.SortOrder, &updated.Version,
+				&updated.PriceMinor, &updated.SortOrder,
 				&updated.CreatedAt, &updated.UpdatedAt)
 	})
 	if errors.Is(err, sql.ErrNoRows) {
@@ -67,16 +64,17 @@ func (s *Store) UpdateService(ctx context.Context, id string, service domain.Ser
 	return updated, persistenceError(err)
 }
 
-func (s *Store) DeleteService(ctx context.Context, id string, version int64) error {
+func (s *Store) DeleteService(ctx context.Context, id string) error {
 	return s.write(ctx, func(tx *sql.Tx) error {
-		if err := checkServiceVersion(ctx, tx, id, version); err != nil {
-			return err
-		}
 		var categoryID string
-		if err := tx.QueryRowContext(ctx, `SELECT category_id FROM catalog_services WHERE id = $1`, id).Scan(&categoryID); err != nil {
+		err := tx.QueryRowContext(ctx, `SELECT category_id FROM catalog_services WHERE id = $1`, id).Scan(&categoryID)
+		if errors.Is(err, sql.ErrNoRows) {
+			return application.ErrNotFound
+		}
+		if err != nil {
 			return fmt.Errorf("find catalog service: %w", err)
 		}
-		result, err := tx.ExecContext(ctx, `DELETE FROM catalog_services WHERE id = $1 AND version = $2`, id, version)
+		result, err := tx.ExecContext(ctx, `DELETE FROM catalog_services WHERE id = $1`, id)
 		if err != nil {
 			return fmt.Errorf("delete catalog service: %w", err)
 		}
@@ -89,20 +87,6 @@ func (s *Store) DeleteService(ctx context.Context, id string, version int64) err
 		}
 		return writeServiceOrder(ctx, tx, categoryID, ids)
 	})
-}
-
-func checkServiceVersion(ctx context.Context, tx *sql.Tx, id string, expected int64) error {
-	var current int64
-	if err := tx.QueryRowContext(ctx, `SELECT version FROM catalog_services WHERE id = $1`, id).Scan(&current); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return application.ErrNotFound
-		}
-		return fmt.Errorf("read service version: %w", err)
-	}
-	if current != expected {
-		return application.ErrPreconditionFailed
-	}
-	return nil
 }
 
 func requireCategory(ctx context.Context, tx *sql.Tx, id string) error {
