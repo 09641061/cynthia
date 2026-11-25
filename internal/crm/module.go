@@ -11,8 +11,13 @@ import (
 	sharedpostgres "go-service/internal/shared/postgres"
 )
 
-// NewModule initializes the CRM module and registers its routes.
-func NewModule(db *sharedpostgres.Client, router gin.IRouter, configReader application.WhatsAppConfigReader) {
+// NewModule initializes the CRM module, registers its routes, and returns the assistant CRM gateway.
+func NewModule(
+	db *sharedpostgres.Client,
+	router gin.IRouter,
+	configReader application.WhatsAppConfigReader,
+	inboundHook application.InboundHook,
+) *AssistantCRMGateway {
 	var sqlDB *sql.DB
 	if db != nil {
 		sqlDB = db.DB
@@ -24,5 +29,12 @@ func NewModule(db *sharedpostgres.Client, router gin.IRouter, configReader appli
 	conversations.SetEventPublisher(broker)
 	messages := application.NewMessageService(store, store, store, store, whatsapp.NewClient(), configReader)
 	messages.SetEventPublisher(broker)
+	messages.SetInboundHook(inboundHook)
 	rest.RegisterRoutes(router.Group("/v1"), customers, conversations, messages, whatsapp.NewVerifier(), broker)
+	return &AssistantCRMGateway{
+		store:         store,
+		broker:        broker,
+		conversations: conversations,
+		messages:      messages,
+	}
 }

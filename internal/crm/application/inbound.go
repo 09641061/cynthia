@@ -54,8 +54,16 @@ func (s *MessageService) ReceiveInbound(ctx context.Context, externalID, rawPhon
 	}, domain.MessagePreview(content))
 	if err == nil && created {
 		s.publishMessageCreated(msg.ConversationID)
+		if s.inboundHook != nil {
+			s.inboundHook.OnInboundMessage(ctx, msg.ConversationID, msg.ID)
+		}
 	}
 	return msg, err
+}
+
+// SetInboundHook configures an optional hook invoked when a new inbound message is persisted.
+func (s *MessageService) SetInboundHook(hook InboundHook) {
+	s.inboundHook = hook
 }
 
 // SetEventPublisher configures an optional publisher for real-time CRM events.

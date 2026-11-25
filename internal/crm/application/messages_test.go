@@ -4,92 +4,11 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"go-service/internal/crm/application"
 	"go-service/internal/crm/domain"
 )
-
-type stubMsgStore struct {
-	customer     domain.Customer
-	conv         domain.Conversation
-	existing     *domain.Message
-	updateCalled bool
-	updateCtxErr error
-}
-
-func (s *stubMsgStore) ListCustomers(context.Context, string, int, int) ([]domain.Customer, int, error) {
-	return nil, 0, nil
-}
-func (s *stubMsgStore) GetCustomer(context.Context, string) (domain.Customer, error) {
-	return s.customer, nil
-}
-func (s *stubMsgStore) GetCustomerByPhone(context.Context, string) (domain.Customer, error) {
-	return s.customer, nil
-}
-func (s *stubMsgStore) CreateCustomer(context.Context, domain.Customer) (domain.Customer, error) {
-	return s.customer, nil
-}
-func (s *stubMsgStore) UpdateCustomer(context.Context, string, int64, string, string) (domain.Customer, error) {
-	return s.customer, nil
-}
-func (s *stubMsgStore) DeleteCustomer(context.Context, string) error { return nil }
-func (s *stubMsgStore) FindOrCreateCustomerByPhone(context.Context, string, string, string) (domain.Customer, error) {
-	return s.customer, nil
-}
-func (s *stubMsgStore) ListConversations(context.Context, application.ConversationFilter) ([]domain.Conversation, int, error) {
-	return nil, 0, nil
-}
-func (s *stubMsgStore) GetConversation(context.Context, string) (domain.Conversation, error) {
-	return s.conv, nil
-}
-func (s *stubMsgStore) UpdateConversationStatus(context.Context, string, int64, string) (domain.Conversation, error) {
-	return s.conv, nil
-}
-func (s *stubMsgStore) EnsureOpenConversation(context.Context, string) (domain.Conversation, error) {
-	return s.conv, nil
-}
-func (s *stubMsgStore) ListMessages(context.Context, string, int, *time.Time) ([]domain.Message, error) {
-	return nil, nil
-}
-func (s *stubMsgStore) GetMessageByIdempotencyKey(context.Context, string, string) (domain.Message, error) {
-	if s.existing != nil {
-		return *s.existing, nil
-	}
-	return domain.Message{}, application.ErrNotFound
-}
-func (s *stubMsgStore) GetMessageByExternalID(context.Context, string) (domain.Message, error) {
-	return domain.Message{}, application.ErrNotFound
-}
-func (s *stubMsgStore) InsertOutboundPending(_ context.Context, msg domain.Message) (domain.Message, error) {
-	return msg, nil
-}
-func (s *stubMsgStore) UpdateMessageDelivery(ctx context.Context, id, status string, extID *string, _ string) (domain.Message, error) {
-	s.updateCalled = true
-	s.updateCtxErr = ctx.Err()
-	return domain.Message{ID: id, ConversationID: s.conv.ID, Status: status, ExternalID: extID}, nil
-}
-func (s *stubMsgStore) InsertInboundMessage(_ context.Context, msg domain.Message, _ string) (domain.Message, bool, error) {
-	return msg, true, nil
-}
-
-type stubCfg struct {
-	phone   string
-	enabled bool
-	err     error
-}
-
-func (c stubCfg) GetWhatsAppConfig(context.Context) (string, bool, error) {
-	return c.phone, c.enabled, c.err
-}
-
-type cancelOnSendSender struct{ cancel context.CancelFunc }
-
-func (c cancelOnSendSender) SendText(context.Context, string, string, string) (string, bool, error) {
-	c.cancel()
-	return "wamid.ok", false, nil
-}
 
 func TestSendOutboundIdempotencyReplayStatuses(t *testing.T) {
 	convID, custID := uuid.NewString(), uuid.NewString()
@@ -112,9 +31,12 @@ func TestSendOutboundIdempotencyReplayStatuses(t *testing.T) {
 	if _, err := svc.SendOutbound(context.Background(), convID, "k1", "hi"); !errors.Is(err, application.ErrConflict) {
 		t.Fatalf("status=pending: expected ErrConflict, got %v", err)
 	}
-	svc, _ = base(domain.MessageStatusSent)
+	svc, st := base(domain.MessageStatusSent)
 	if msg, err := svc.SendOutbound(context.Background(), convID, "k1", "hi"); err != nil || msg.Status != domain.MessageStatusSent {
 		t.Fatalf("status=sent: expected (sent, nil), got (%+v, %v)", msg, err)
+	}
+	if st.pausedCalled {
+		t.Fatalf("expected idempotent replay not to re-pause AI")
 	}
 }
 
@@ -142,5 +64,35 @@ func TestSendOutboundConfigErrorsAndWithoutCancelPersist(t *testing.T) {
 	}
 	if !st.updateCalled || st.updateCtxErr != nil {
 		t.Fatalf("expected UpdateMessageDelivery to receive uncanceled context, called=%v err=%v", st.updateCalled, st.updateCtxErr)
+	}
+	if !st.pausedCalled || st.pausedReason != "staff_replied" {
+		t.Fatalf("expected staff reply to pause AI with staff_replied, got called=%v reason=%q", st.pausedCalled, st.pausedReason)
+	}
+}
+
+func TestSendAssistantReplyDoesNotAutoPauseAndInboundHookFires(t *testing.T) {
+	convID, custID := uuid.NewString(), uuid.NewString()
+	st := &stubMsgStore{
+		customer: domain.Customer{ID: custID, Phone: "+573001112233"},
+		conv:     domain.Conversation{ID: convID, CustomerID: custID, Status: domain.ConversationStatusOpen},
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	svc := application.NewMessageService(st, st, st, st, cancelOnSendSender{cancel: cancel}, stubCfg{phone: "p1", enabled: true})
+	if _, err := svc.SendAssistantReply(ctx, convID, "k-ai", "hello from ai"); err != nil {
+		t.Fatalf("expected SendAssistantReply to succeed, got %v", err)
+	}
+	if st.pausedCalled {
+		t.Fatalf("expected SendAssistantReply not to pause AI")
+	}
+
+	hook := &stubInboundHook{}
+	svc.SetInboundHook(hook)
+	msg, err := svc.ReceiveInbound(context.Background(), "wamid.in.1", "+573001112233", "Ana", "hola")
+	if err != nil {
+		t.Fatalf("expected ReceiveInbound to succeed, got %v", err)
+	}
+	if hook.calls != 1 || hook.convID != convID || hook.msgID != msg.ID {
+		t.Fatalf("expected inbound hook called once with (%s,%s), got %+v", convID, msg.ID, hook)
 	}
 }

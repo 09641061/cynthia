@@ -44,6 +44,7 @@ func RegisterRoutes(
 		router.GET("/conversations", h.listConversations)
 		router.GET("/conversations/:id/messages", h.listMessages)
 		router.PATCH("/conversations/:id/status", h.updateConversationStatus)
+		router.PATCH("/conversations/:id/ai", h.updateConversationAI)
 	}
 	if messages != nil {
 		router.POST("/conversations/:id/messages", h.sendMessage)

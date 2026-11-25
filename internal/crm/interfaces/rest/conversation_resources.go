@@ -15,11 +15,17 @@ type updateStatusInput struct {
 	Status string `json:"status"`
 }
 
+type updateAIInput struct {
+	AIPaused *bool `json:"ai_paused"`
+}
+
 type conversationResource struct {
 	ID                 string     `json:"id"`
 	CustomerID         string     `json:"customer_id"`
 	Channel            string     `json:"channel"`
 	Status             string     `json:"status"`
+	AiPaused           bool       `json:"ai_paused"`
+	HandoffReason      string     `json:"handoff_reason"`
 	Version            int64      `json:"version"`
 	LastMessageAt      *time.Time `json:"last_message_at,omitempty"`
 	LastMessagePreview *string    `json:"last_message_preview,omitempty"`
@@ -51,6 +57,8 @@ func toConversationResource(c domain.Conversation) conversationResource {
 		CustomerID:         c.CustomerID,
 		Channel:            c.Channel,
 		Status:             c.Status,
+		AiPaused:           c.AiPaused,
+		HandoffReason:      c.HandoffReason,
 		Version:            c.Version,
 		LastMessageAt:      c.LastMessageAt,
 		LastMessagePreview: c.LastMessagePreview,

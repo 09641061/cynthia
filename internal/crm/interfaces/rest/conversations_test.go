@@ -87,8 +87,8 @@ func TestConversationRoutes(t *testing.T) {
 	if rec := patch(`"v99"`); rec.Code != http.StatusPreconditionFailed {
 		t.Fatalf("expected 412, got %d", rec.Code)
 	}
-	if rec := patch(`"v1"`); rec.Code != http.StatusOK || rec.Header().Get("ETag") != `"v2"` {
-		t.Fatalf("expected 200 ETag v2, got %d %q", rec.Code, rec.Header().Get("ETag"))
+	if rec := patch(`"v2"`); rec.Code != http.StatusOK || rec.Header().Get("ETag") != `"v3"` {
+		t.Fatalf("expected 200 ETag v3, got %d %q", rec.Code, rec.Header().Get("ETag"))
 	}
 	req = httptest.NewRequest(http.MethodPost, "/v1/conversations/"+convID+"/messages", bytes.NewBufferString(`{"content":"closed"}`))
 	req.Header.Set("Content-Type", "application/json")

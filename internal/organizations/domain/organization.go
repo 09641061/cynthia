@@ -49,6 +49,7 @@ type Organization struct {
 	CurrencyCode          string        `json:"currency_code"`
 	BusinessHours         BusinessHours `json:"business_hours"`
 	AiInstructions        string        `json:"ai_instructions"`
+	AiEnabled             bool          `json:"ai_enabled"`
 	WhatsAppPhoneNumber   string        `json:"whatsapp_phone_number"`
 	WhatsAppPhoneNumberID string        `json:"whatsapp_phone_number_id"`
 	WhatsAppEnabled       bool          `json:"whatsapp_enabled"`
@@ -66,6 +67,7 @@ type UpdatePatch struct {
 	CurrencyCode          *string        `json:"currency_code"`
 	BusinessHours         *BusinessHours `json:"business_hours"`
 	AiInstructions        *string        `json:"ai_instructions"`
+	AiEnabled             *bool          `json:"ai_enabled"`
 	WhatsAppPhoneNumber   *string        `json:"whatsapp_phone_number"`
 	WhatsAppPhoneNumberID *string        `json:"whatsapp_phone_number_id"`
 	WhatsAppEnabled       *bool          `json:"whatsapp_enabled"`
@@ -94,6 +96,9 @@ func ApplyPatch(current Organization, patch UpdatePatch) (Organization, error) {
 	}
 	if patch.AiInstructions != nil {
 		next.AiInstructions = *patch.AiInstructions
+	}
+	if patch.AiEnabled != nil {
+		next.AiEnabled = *patch.AiEnabled
 	}
 	if patch.WhatsAppPhoneNumber != nil {
 		next.WhatsAppPhoneNumber = stripPhoneFormatting(strings.TrimSpace(*patch.WhatsAppPhoneNumber))

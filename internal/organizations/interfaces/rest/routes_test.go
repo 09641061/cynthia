@@ -77,7 +77,7 @@ func TestGetAndPatchOrganization(t *testing.T) {
 		t.Fatalf("expected 400 on unknown field, got %d", rec.Code)
 	}
 
-	req = httptest.NewRequest(http.MethodPatch, "/v1/organization", bytes.NewBufferString(`{"name":"Studio X","currency_code":"EUR"}`))
+	req = httptest.NewRequest(http.MethodPatch, "/v1/organization", bytes.NewBufferString(`{"name":"Studio X","currency_code":"EUR","ai_enabled":true}`))
 	req.Header.Set("If-Match", `"v1"`)
 	rec = httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
@@ -85,7 +85,7 @@ func TestGetAndPatchOrganization(t *testing.T) {
 		t.Fatalf("unexpected PATCH response: %d %q", rec.Code, rec.Header().Get("ETag"))
 	}
 	var got domain.Organization
-	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil || got.Name != "Studio X" || got.CurrencyCode != "EUR" {
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil || got.Name != "Studio X" || got.CurrencyCode != "EUR" || !got.AiEnabled {
 		t.Fatalf("unexpected body: %v %+v", err, got)
 	}
 

@@ -12,7 +12,7 @@ import (
 func newRouter(db *postgres.Client) *gin.Engine {
 	router := gin.Default()
 	catalog.NewModule(db, router)
-	crm.NewModule(db, router, organizations.NewWhatsAppConfigReader(db))
+	crm.NewModule(db, router, organizations.NewWhatsAppConfigReader(db), nil)
 	organizations.NewModule(db, router)
 	calendar.NewModule(
 		db,

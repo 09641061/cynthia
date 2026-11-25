@@ -29,7 +29,14 @@ type ConversationStore interface {
 	ListConversations(ctx context.Context, filter ConversationFilter) ([]domain.Conversation, int, error)
 	GetConversation(ctx context.Context, id string) (domain.Conversation, error)
 	UpdateConversationStatus(ctx context.Context, id string, expectedVersion int64, status string) (domain.Conversation, error)
+	UpdateConversationAI(ctx context.Context, id string, expectedVersion int64, aiPaused bool, handoffReason string) (domain.Conversation, error)
+	SetConversationAIPaused(ctx context.Context, id string, aiPaused bool, handoffReason string) (domain.Conversation, error)
 	EnsureOpenConversation(ctx context.Context, customerID string) (domain.Conversation, error)
+}
+
+// InboundHook receives notifications when a new inbound message is persisted.
+type InboundHook interface {
+	OnInboundMessage(ctx context.Context, conversationID, messageID string)
 }
 
 // MessageStore defines persistence operations for CRM messages.

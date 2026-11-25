@@ -25,7 +25,26 @@ func (s *stubConvStore) UpdateConversationStatus(_ context.Context, _ string, ex
 	if s.conv.Version != expected {
 		return domain.Conversation{}, application.ErrPreconditionFailed
 	}
+	if s.conv.Status == domain.ConversationStatusClosed && status == domain.ConversationStatusOpen {
+		s.conv.AiPaused = false
+		s.conv.HandoffReason = ""
+	}
 	s.conv.Status = status
+	s.conv.Version++
+	return s.conv, nil
+}
+func (s *stubConvStore) UpdateConversationAI(_ context.Context, _ string, expected int64, aiPaused bool, reason string) (domain.Conversation, error) {
+	if s.conv.Version != expected {
+		return domain.Conversation{}, application.ErrPreconditionFailed
+	}
+	s.conv.AiPaused = aiPaused
+	s.conv.HandoffReason = reason
+	s.conv.Version++
+	return s.conv, nil
+}
+func (s *stubConvStore) SetConversationAIPaused(_ context.Context, _ string, aiPaused bool, reason string) (domain.Conversation, error) {
+	s.conv.AiPaused = aiPaused
+	s.conv.HandoffReason = reason
 	s.conv.Version++
 	return s.conv, nil
 }

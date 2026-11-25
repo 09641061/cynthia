@@ -60,9 +60,9 @@ func TestConversationsInboundReopenDedupeAndOutboundIdempotency(t *testing.T) {
 	if _, err := convSvc.UpdateStatus(ctx, m1.ConversationID, 99, "closed"); !errors.Is(err, application.ErrPreconditionFailed) {
 		t.Fatalf("expected ErrPreconditionFailed, got %v", err)
 	}
-	closed, err := convSvc.UpdateStatus(ctx, m1.ConversationID, 1, "closed")
-	if err != nil || closed.Status != "closed" || closed.Version != 2 {
-		t.Fatalf("expected closed v2, got %+v err=%v", closed, err)
+	closed, err := convSvc.UpdateStatus(ctx, m1.ConversationID, 2, "closed")
+	if err != nil || closed.Status != "closed" || closed.Version != 3 {
+		t.Fatalf("expected closed v3, got %+v err=%v", closed, err)
 	}
 
 	// 4. Inbound reopens the most recent closed conversation

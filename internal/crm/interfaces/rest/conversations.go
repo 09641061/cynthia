@@ -117,3 +117,30 @@ func (h Handler) updateConversationStatus(c *gin.Context) {
 	c.Header("ETag", entityTag(conv.Version))
 	c.JSON(http.StatusOK, toConversationResource(conv))
 }
+
+func (h Handler) updateConversationAI(c *gin.Context) {
+	convID, ok := pathID(c, "id")
+	if !ok {
+		return
+	}
+	version, ok := ifMatch(c)
+	if !ok {
+		return
+	}
+	var input updateAIInput
+	if !bindJSON(c, &input) {
+		return
+	}
+	if input.AIPaused == nil {
+		writeProblem(c, http.StatusBadRequest, "Bad Request", "ai_paused is required.")
+		return
+	}
+	conv, err := h.conversations.UpdateAI(c.Request.Context(), convID, version, *input.AIPaused)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	c.Header("Cache-Control", "no-store")
+	c.Header("ETag", entityTag(conv.Version))
+	c.JSON(http.StatusOK, toConversationResource(conv))
+}
