@@ -24,6 +24,12 @@ func TestCustomerSearchMultiWordAndEscaping(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("create luis: %v", err)
 	}
+	promo, err := store.CreateCustomer(ctx, domain.Customer{
+		ID: uuid.NewString(), Name: "100% Promo_User", Phone: "+573220001122",
+	})
+	if err != nil {
+		t.Fatalf("create promo: %v", err)
+	}
 
 	for _, query := range []string{"Ana Perez", "Ana 300", "+ 300"} {
 		items, total, err := store.ListCustomers(ctx, query, 1, 10)
@@ -32,7 +38,14 @@ func TestCustomerSearchMultiWordAndEscaping(t *testing.T) {
 		}
 	}
 
-	for _, query := range []string{"Ana 999", "%", "_", `\`} {
+	for _, query := range []string{"100%", "Promo_User", "%", "_"} {
+		items, total, err := store.ListCustomers(ctx, query, 1, 10)
+		if err != nil || total != 1 || len(items) != 1 || items[0].ID != promo.ID {
+			t.Fatalf("query %q: total=%d items=%+v err=%v", query, total, items, err)
+		}
+	}
+
+	for _, query := range []string{"Ana 999", `\`} {
 		items, total, err := store.ListCustomers(ctx, query, 1, 10)
 		if err != nil || total != 0 || len(items) != 0 {
 			t.Fatalf("query %q: got total=%d len=%d err=%v, want 0", query, total, len(items), err)

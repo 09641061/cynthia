@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestBuildCustomerFilterEmptyAndWhitespace(t *testing.T) {
@@ -67,5 +68,24 @@ func TestBuildCustomerFilterTokenCap(t *testing.T) {
 	wantArgs := []any{"a", "b", "c", "d", "e", "f", "g", "h"}
 	if !reflect.DeepEqual(args, wantArgs) {
 		t.Fatalf("args = %v, want %v", args, wantArgs)
+	}
+}
+
+func TestBuildCustomerFilterRuneTruncationUTF8(t *testing.T) {
+	prefix := strings.Repeat("a", maxSearchQueryRunes-2)
+	query := prefix + " 🔥 tail"
+	truncated := truncateRunes(query, maxSearchQueryRunes)
+	if !utf8.ValidString(truncated) || utf8.RuneCountInString(truncated) != maxSearchQueryRunes {
+		t.Fatalf("truncated invalid or wrong rune count: valid=%v runes=%d", utf8.ValidString(truncated), utf8.RuneCountInString(truncated))
+	}
+	_, args := buildCustomerFilter(query)
+	if !reflect.DeepEqual(args, []any{prefix, "🔥"}) {
+		t.Fatalf("args = %v, want [%s 🔥]", args, prefix)
+	}
+
+	boundary := strings.Repeat("a", maxSearchQueryRunes-1) + "🔥tail"
+	cut := truncateRunes(boundary, maxSearchQueryRunes)
+	if !utf8.ValidString(cut) || utf8.RuneCountInString(cut) != maxSearchQueryRunes || !strings.HasSuffix(cut, "🔥") {
+		t.Fatalf("boundary cut invalid: valid=%v runes=%d cut=%q", utf8.ValidString(cut), utf8.RuneCountInString(cut), cut)
 	}
 }
