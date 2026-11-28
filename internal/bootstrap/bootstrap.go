@@ -49,18 +49,25 @@ func Run(ctx context.Context) (resultErr error) {
 		return fmt.Errorf("configure PostgreSQL circuit breaker: %w", err)
 	}
 	client := postgres.NewClient(db, breaker)
-	router, startWorker, err := newApp(client, redisClient, cfg)
+	router, startInactivity, startWorker, err := newApp(client, redisClient, cfg)
 	if err != nil {
 		return fmt.Errorf("configure HTTP router: %w", err)
 	}
-	if client != nil && strings.TrimSpace(cfg.DeepSeekAPIKey) != "" {
+	if client != nil {
 		workerCtx, cancelWorker := context.WithCancel(ctx)
 		var wg sync.WaitGroup
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			startWorker(workerCtx)
+			startInactivity(workerCtx)
 		}()
+		if strings.TrimSpace(cfg.DeepSeekAPIKey) != "" {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				startWorker(workerCtx)
+			}()
+		}
 		defer func() {
 			cancelWorker()
 			wg.Wait()

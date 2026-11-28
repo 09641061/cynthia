@@ -108,7 +108,7 @@ func (p *Processor) loadAndCheckGates(ctx context.Context, job Job) (OrgConfig, 
 	if err != nil {
 		return OrgConfig{}, Conversation{}, false, err
 	}
-	eligible := orgCfg.AiEnabled && orgCfg.WhatsAppEnabled && !conv.AiPaused && conv.Status == "open"
+	eligible := orgCfg.WhatsAppEnabled && !conv.AiPaused && conv.Status == "open"
 	return orgCfg, conv, eligible, nil
 }
 
@@ -121,7 +121,7 @@ func (p *Processor) canDeliver(ctx context.Context, convID string, handedOff, mu
 	if err != nil {
 		return false, err
 	}
-	if !(orgCfg.AiEnabled && orgCfg.WhatsAppEnabled && (!conv.AiPaused || handedOff) && conv.Status == "open") {
+	if !(orgCfg.WhatsAppEnabled && (!conv.AiPaused || handedOff) && conv.Status == "open") {
 		return false, nil
 	}
 	if !mutatedOrHandedOff {

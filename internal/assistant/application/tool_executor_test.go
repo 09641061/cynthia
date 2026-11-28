@@ -2,10 +2,12 @@ package application_test
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"go-service/internal/assistant/application"
 	"go-service/internal/assistant/domain"
 )
@@ -62,10 +64,11 @@ func (s *stubCalendar) CancelWhatsAppAppointment(_ context.Context, id, customer
 }
 
 func TestToolExecutorConfirmationGateAndMutationLimit(t *testing.T) {
-	conv := application.Conversation{ID: "conv-1", CustomerID: "cust-server"}
+	conv := application.Conversation{ID: uuid.NewString(), CustomerID: "cust-server"}
 	crm := &stubCRM{}
 	cal := &stubCalendar{}
-	argsConfirmed := `{"service_id":"svc-1","person_id":"p-1","start_at":"2026-12-01T15:00:00Z","confirmed_by_customer":true}`
+	svcID, personID, aptID := uuid.NewString(), uuid.NewString(), uuid.NewString()
+	argsConfirmed := fmt.Sprintf(`{"service_id":%q,"person_id":%q,"start_at":"2026-12-01T15:00:00Z","confirmed_by_customer":true}`, svcID, personID)
 
 	// 1. No prior assistant turn -> confirmation_required
 	execNoPrior := application.NewToolExecutor(crm, stubCatalog{}, cal, conv, false, "PEN")
@@ -82,7 +85,7 @@ func TestToolExecutorConfirmationGateAndMutationLimit(t *testing.T) {
 		ID: "2", Function: domain.ToolCallFunction{Name: "list_services", Arguments: `{}`},
 	})
 	_ = exec.Execute(context.Background(), domain.ToolCall{
-		ID: "3", Function: domain.ToolCallFunction{Name: "get_available_slots", Arguments: `{"date":"2026-12-01","service_id":"svc-1"}`},
+		ID: "3", Function: domain.ToolCallFunction{Name: "get_available_slots", Arguments: fmt.Sprintf(`{"date":"2026-12-01","service_id":%q}`, svcID)},
 	})
 	out = exec.Execute(context.Background(), domain.ToolCall{
 		ID: "4", Function: domain.ToolCallFunction{Name: "create_appointment", Arguments: argsConfirmed},
@@ -91,7 +94,7 @@ func TestToolExecutorConfirmationGateAndMutationLimit(t *testing.T) {
 		t.Fatalf("expected successful create bound to cust-server, got %s (cust=%s)", out, cal.lastCustomerID)
 	}
 	out = exec.Execute(context.Background(), domain.ToolCall{
-		ID: "5", Function: domain.ToolCallFunction{Name: "cancel_appointment", Arguments: `{"appointment_id":"apt-new","confirmed_by_customer":true}`},
+		ID: "5", Function: domain.ToolCallFunction{Name: "cancel_appointment", Arguments: fmt.Sprintf(`{"appointment_id":%q,"confirmed_by_customer":true}`, aptID)},
 	})
 	if !strings.Contains(out, "mutation_limit_reached") {
 		t.Fatalf("expected mutation_limit_reached, got %s", out)
@@ -110,20 +113,21 @@ func TestToolExecutorHandoffToHuman(t *testing.T) {
 }
 
 func TestToolExecutorReadToolsRescheduleAndUnconfirmed(t *testing.T) {
-	conv := application.Conversation{ID: "c1", CustomerID: "cust-1"}
+	conv := application.Conversation{ID: uuid.NewString(), CustomerID: "cust-1"}
 	cal := &stubCalendar{}
 	exec := application.NewToolExecutor(&stubCRM{}, stubCatalog{}, cal, conv, true, "PEN")
+	aptID := uuid.NewString()
 
 	out := exec.Execute(context.Background(), domain.ToolCall{
-		ID: "u1", Function: domain.ToolCallFunction{Name: "reschedule_appointment", Arguments: `{"appointment_id":"apt-1","start_at":"2026-12-02T15:00:00Z","confirmed_by_customer":false}`},
+		ID: "u1", Function: domain.ToolCallFunction{Name: "reschedule_appointment", Arguments: fmt.Sprintf(`{"appointment_id":%q,"start_at":"2026-12-02T15:00:00Z","confirmed_by_customer":false}`, aptID)},
 	})
 	if !strings.Contains(out, "confirmation_required") {
 		t.Fatalf("expected confirmation_required for unconfirmed reschedule, got %s", out)
 	}
 	out = exec.Execute(context.Background(), domain.ToolCall{
-		ID: "r1", Function: domain.ToolCallFunction{Name: "reschedule_appointment", Arguments: `{"appointment_id":"apt-1","start_at":"2026-12-02T15:00:00Z","confirmed_by_customer":true}`},
+		ID: "r1", Function: domain.ToolCallFunction{Name: "reschedule_appointment", Arguments: fmt.Sprintf(`{"appointment_id":%q,"start_at":"2026-12-02T15:00:00Z","confirmed_by_customer":true}`, aptID)},
 	})
-	if !strings.Contains(out, `"apt-1"`) || cal.lastCustomerID != "cust-1" {
+	if !strings.Contains(out, aptID) || cal.lastCustomerID != "cust-1" {
 		t.Fatalf("unexpected reschedule output: %s", out)
 	}
 	slotsOut := exec.Execute(context.Background(), domain.ToolCall{

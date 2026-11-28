@@ -13,28 +13,29 @@ import (
 )
 
 type Config struct {
-	DatabaseURL             string
-	RedisURL                string
-	Port                    string
-	MigrationsDir           string
-	ResendAPIKey            string
-	ResendFrom              string
-	AppURL                  string
-	SessionTTL              time.Duration
-	RefreshTTL              time.Duration
-	InviteTTL               time.Duration
-	WhatsAppAccessToken     string
-	WhatsAppPhoneNumberID   string
-	WhatsAppGraphAPIVersion string
-	WhatsAppVerifyToken     string
-	WhatsAppAppSecret       string
-	StartupTimeout          time.Duration
-	ShutdownTimeout         time.Duration
-	ReadHeaderTimeout       time.Duration
-	DeepSeekAPIKey          string
-	DeepSeekBaseURL         string
-	DeepSeekModel           string
-	AssistantWorkers        int
+	DatabaseURL                string
+	RedisURL                   string
+	Port                       string
+	MigrationsDir              string
+	ResendAPIKey               string
+	ResendFrom                 string
+	AppURL                     string
+	SessionTTL                 time.Duration
+	RefreshTTL                 time.Duration
+	InviteTTL                  time.Duration
+	WhatsAppAccessToken        string
+	WhatsAppPhoneNumberID      string
+	WhatsAppGraphAPIVersion    string
+	WhatsAppVerifyToken        string
+	WhatsAppAppSecret          string
+	StartupTimeout             time.Duration
+	ShutdownTimeout            time.Duration
+	ReadHeaderTimeout          time.Duration
+	DeepSeekAPIKey             string
+	DeepSeekBaseURL            string
+	DeepSeekModel              string
+	AssistantWorkers           int
+	CRMConversationIdleTimeout time.Duration
 }
 
 func Load() (Config, error) {
@@ -46,28 +47,29 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	return Config{
-		DatabaseURL:             databaseURL,
-		RedisURL:                RedisURLFromEnv(),
-		Port:                    envOrDefault("PORT", "3000"),
-		MigrationsDir:           envOrDefault("MIGRATIONS_DIR", "migrations"),
-		ResendAPIKey:            os.Getenv("RESEND_API_KEY"),
-		ResendFrom:              envOrDefault("RESEND_FROM", "Cynthia <no-reply@example.com>"),
-		AppURL:                  envOrDefault("APP_URL", "http://localhost:3000"),
-		SessionTTL:              time.Duration(envIntOrDefault("SESSION_TTL_MINUTES", 30)) * time.Minute,
-		RefreshTTL:              time.Duration(envIntOrDefault("REFRESH_TTL_DAYS", 14)) * 24 * time.Hour,
-		InviteTTL:               time.Duration(envIntOrDefault("INVITE_TTL_HOURS", 72)) * time.Hour,
-		WhatsAppAccessToken:     os.Getenv("WHATSAPP_ACCESS_TOKEN"),
-		WhatsAppPhoneNumberID:   os.Getenv("WHATSAPP_PHONE_NUMBER_ID"),
-		WhatsAppGraphAPIVersion: envOrDefault("WHATSAPP_GRAPH_API_VERSION", "v25.0"),
-		WhatsAppVerifyToken:     os.Getenv("WHATSAPP_VERIFY_TOKEN"),
-		WhatsAppAppSecret:       os.Getenv("WHATSAPP_APP_SECRET"),
-		StartupTimeout:          10 * time.Second,
-		ShutdownTimeout:         10 * time.Second,
-		ReadHeaderTimeout:       5 * time.Second,
-		DeepSeekAPIKey:          os.Getenv("DEEPSEEK_API_KEY"),
-		DeepSeekBaseURL:         envOrDefault("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
-		DeepSeekModel:           envOrDefault("DEEPSEEK_MODEL", "deepseek-chat"),
-		AssistantWorkers:        envIntClamped("ASSISTANT_WORKERS", 2, 1),
+		DatabaseURL:                databaseURL,
+		RedisURL:                   RedisURLFromEnv(),
+		Port:                       envOrDefault("PORT", "3000"),
+		MigrationsDir:              envOrDefault("MIGRATIONS_DIR", "migrations"),
+		ResendAPIKey:               os.Getenv("RESEND_API_KEY"),
+		ResendFrom:                 envOrDefault("RESEND_FROM", "Cynthia <no-reply@example.com>"),
+		AppURL:                     envOrDefault("APP_URL", "http://localhost:3000"),
+		SessionTTL:                 time.Duration(envIntOrDefault("SESSION_TTL_MINUTES", 30)) * time.Minute,
+		RefreshTTL:                 time.Duration(envIntOrDefault("REFRESH_TTL_DAYS", 14)) * 24 * time.Hour,
+		InviteTTL:                  time.Duration(envIntOrDefault("INVITE_TTL_HOURS", 72)) * time.Hour,
+		WhatsAppAccessToken:        os.Getenv("WHATSAPP_ACCESS_TOKEN"),
+		WhatsAppPhoneNumberID:      os.Getenv("WHATSAPP_PHONE_NUMBER_ID"),
+		WhatsAppGraphAPIVersion:    envOrDefault("WHATSAPP_GRAPH_API_VERSION", "v25.0"),
+		WhatsAppVerifyToken:        os.Getenv("WHATSAPP_VERIFY_TOKEN"),
+		WhatsAppAppSecret:          os.Getenv("WHATSAPP_APP_SECRET"),
+		StartupTimeout:             10 * time.Second,
+		ShutdownTimeout:            10 * time.Second,
+		ReadHeaderTimeout:          5 * time.Second,
+		DeepSeekAPIKey:             os.Getenv("DEEPSEEK_API_KEY"),
+		DeepSeekBaseURL:            envOrDefault("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
+		DeepSeekModel:              envOrDefault("DEEPSEEK_MODEL", "deepseek-chat"),
+		AssistantWorkers:           envIntClamped("ASSISTANT_WORKERS", 2, 1),
+		CRMConversationIdleTimeout: envDurationOrDefault("CRM_CONVERSATION_IDLE_TIMEOUT", 15*time.Minute),
 	}, nil
 }
 
@@ -129,6 +131,15 @@ func envIntClamped(key string, fallback, minVal int) int {
 				return minVal
 			}
 			return n
+		}
+	}
+	return fallback
+}
+
+func envDurationOrDefault(key string, fallback time.Duration) time.Duration {
+	if v := os.Getenv(key); v != "" {
+		if d, err := time.ParseDuration(v); err == nil && d > 0 {
+			return d
 		}
 	}
 	return fallback

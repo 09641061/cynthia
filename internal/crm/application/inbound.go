@@ -54,6 +54,7 @@ func (s *MessageService) ReceiveInbound(ctx context.Context, externalID, rawPhon
 	}, domain.MessagePreview(content))
 	if err == nil && created {
 		s.publishMessageCreated(msg.ConversationID)
+		s.publishConversationUpdated(msg.ConversationID)
 		if s.inboundHook != nil {
 			s.inboundHook.OnInboundMessage(ctx, msg.ConversationID, msg.ID)
 		}
@@ -74,5 +75,11 @@ func (s *MessageService) SetEventPublisher(publisher EventPublisher) {
 func (s *MessageService) publishMessageCreated(conversationID string) {
 	if s.events != nil {
 		s.events.Publish(Event{Type: EventMessageCreated, ConversationID: conversationID})
+	}
+}
+
+func (s *MessageService) publishConversationUpdated(conversationID string) {
+	if s.events != nil {
+		s.events.Publish(Event{Type: EventConversationUpdated, ConversationID: conversationID})
 	}
 }
