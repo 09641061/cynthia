@@ -32,13 +32,18 @@ func (e *ToolExecutor) execCreateAppointment(ctx context.Context, rawArgs string
 		return msg
 	}
 	startAt, err := time.Parse(time.RFC3339, strings.TrimSpace(args.StartAt))
-	if err != nil || strings.TrimSpace(args.ServiceID) == "" || strings.TrimSpace(args.PersonID) == "" {
+	if err != nil {
 		return marshalToolError("invalid_arguments")
+	}
+	serviceID, okSvc := parseValidUUID(args.ServiceID)
+	personID, okPer := parseValidUUID(args.PersonID)
+	if !okSvc || !okPer {
+		return marshalInvalidID()
 	}
 	res, err := e.calendar.CreateWhatsAppAppointment(ctx, CreateAppointmentInput{
 		CustomerID: e.customerID,
-		ServiceID:  strings.TrimSpace(args.ServiceID),
-		PersonID:   strings.TrimSpace(args.PersonID),
+		ServiceID:  serviceID,
+		PersonID:   personID,
 		StartAt:    startAt,
 		Notes:      strings.TrimSpace(args.Notes),
 	})
@@ -63,15 +68,16 @@ func (e *ToolExecutor) execRescheduleAppointment(ctx context.Context, rawArgs st
 	if msg, ok := e.checkMutationGuard(args.ConfirmedByCustomer); !ok {
 		return msg
 	}
-	if strings.TrimSpace(args.AppointmentID) == "" {
-		return marshalToolError("invalid_arguments")
+	aptID, ok := parseValidUUID(args.AppointmentID)
+	if !ok {
+		return marshalInvalidID()
 	}
-	in := RescheduleAppointmentInput{
-		AppointmentID: strings.TrimSpace(args.AppointmentID),
-		CustomerID:    e.customerID,
-		ServiceID:     trimOptionalString(args.ServiceID),
-		PersonID:      trimOptionalString(args.PersonID),
+	svcID, okSvc := parseOptionalUUID(args.ServiceID)
+	perID, okPer := parseOptionalUUID(args.PersonID)
+	if !okSvc || !okPer {
+		return marshalInvalidID()
 	}
+	in := RescheduleAppointmentInput{AppointmentID: aptID, CustomerID: e.customerID, ServiceID: svcID, PersonID: perID}
 	if args.StartAt != nil && strings.TrimSpace(*args.StartAt) != "" {
 		parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(*args.StartAt))
 		if err != nil {
@@ -98,10 +104,11 @@ func (e *ToolExecutor) execCancelAppointment(ctx context.Context, rawArgs string
 	if msg, ok := e.checkMutationGuard(args.ConfirmedByCustomer); !ok {
 		return msg
 	}
-	if strings.TrimSpace(args.AppointmentID) == "" {
-		return marshalToolError("invalid_arguments")
+	aptID, ok := parseValidUUID(args.AppointmentID)
+	if !ok {
+		return marshalInvalidID()
 	}
-	res, err := e.calendar.CancelWhatsAppAppointment(ctx, strings.TrimSpace(args.AppointmentID), e.customerID)
+	res, err := e.calendar.CancelWhatsAppAppointment(ctx, aptID, e.customerID)
 	if err != nil {
 		return marshalMappedError(err)
 	}
@@ -125,15 +132,4 @@ func (e *ToolExecutor) execHandoffToHuman(ctx context.Context, rawArgs string) s
 	}
 	e.handedOffInTurn = true
 	return marshalToolPayload(map[string]any{"handed_off": true, "reason": reason})
-}
-
-func trimOptionalString(v *string) *string {
-	if v == nil {
-		return nil
-	}
-	trimmed := strings.TrimSpace(*v)
-	if trimmed == "" {
-		return nil
-	}
-	return &trimmed
 }

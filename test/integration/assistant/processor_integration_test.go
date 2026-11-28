@@ -113,13 +113,13 @@ func TestProcessorEndToEndServiceQAAndBookingLifecycle(t *testing.T) {
 		t.Fatalf("expected conversation paused for handoff, got %+v", conv)
 	}
 
-	// Job 3: ai_enabled=false skips LLM completely
-	_, _ = client.DB.ExecContext(ctx, `UPDATE organizations SET ai_enabled = FALSE`)
+	// Job 3: whatsapp_enabled=false skips LLM completely
+	_, _ = client.DB.ExecContext(ctx, `UPDATE organizations SET whatsapp_enabled = FALSE`)
 	_, _ = client.DB.ExecContext(ctx, `UPDATE crm_conversations SET ai_paused = FALSE WHERE id = $1`, seed.convID)
 	_ = jobStore.Enqueue(ctx, seed.convID, uuid.NewString(), 0)
 	j3, _, _ := jobStore.ClaimNext(ctx, 2*time.Minute)
 	beforeCalls := calls.Load()
 	if err := proc.Process(ctx, j3); err != nil || calls.Load() != beforeCalls || len(recCRM.sent) != 2 {
-		t.Fatalf("expected ai_enabled=false to skip LLM and send")
+		t.Fatalf("expected whatsapp_enabled=false to skip LLM and send")
 	}
 }

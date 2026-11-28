@@ -4,7 +4,7 @@ import "time"
 
 const (
 	// MaxToolRounds bounds the number of DeepSeek tool-calling iterations per job.
-	MaxToolRounds = 5
+	MaxToolRounds = 8
 	// MaxHistoryMessages caps how many recent conversation messages are sent to the model.
 	MaxHistoryMessages = 20
 	// MaxInstructionsRunes caps organization ai_instructions length in runes.

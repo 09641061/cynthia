@@ -16,12 +16,9 @@ func (e fakeRetryableErr) Error() string     { return "llm error" }
 func (e fakeRetryableErr) IsRetryable() bool { return e.retryable }
 
 type fakeJobStore struct {
-	completed   bool
-	failed      bool
-	retryable   bool
-	hasPending  bool
-	recentCount int
-	savedReply  string
+	completed, failed, retryable, hasPending bool
+	recentCount                              int
+	savedReply                               string
 }
 
 func (f *fakeJobStore) Enqueue(context.Context, string, string, time.Duration) error { return nil }
@@ -85,12 +82,20 @@ func TestProcessorGatesAndRateLimit(t *testing.T) {
 	job := application.Job{ID: "j1", ConversationID: "c1", TriggerMessageID: "m1", Attempts: 1}
 	openConv := application.Conversation{ID: "c1", CustomerID: "u1", Status: "open"}
 
-	// AI disabled -> Complete without sending
+	// WhatsApp disabled -> Complete without sending
 	jobs := &fakeJobStore{}
 	crm := &fakeCRM{conv: openConv}
-	p := application.NewProcessor(jobs, fakeLLM{}, fakeOrg{application.OrgConfig{AiEnabled: false, WhatsAppEnabled: true}}, crm, stubCatalog{}, &stubCalendar{})
+	p := application.NewProcessor(jobs, fakeLLM{}, fakeOrg{application.OrgConfig{AiEnabled: true, WhatsAppEnabled: false}}, crm, stubCatalog{}, &stubCalendar{})
 	if err := p.Process(context.Background(), job); err != nil || !jobs.completed || crm.sentText != "" {
-		t.Fatalf("expected complete without send when AI disabled: err=%v completed=%v sent=%q", err, jobs.completed, crm.sentText)
+		t.Fatalf("expected complete without send when WhatsApp disabled: err=%v completed=%v sent=%q", err, jobs.completed, crm.sentText)
+	}
+
+	// AiEnabled=false with WhatsAppEnabled=true -> still eligible and sends reply
+	jobs = &fakeJobStore{}
+	crm = &fakeCRM{conv: openConv}
+	p = application.NewProcessor(jobs, fakeLLM{res: domain.CompletionResult{Content: "Hola!"}}, fakeOrg{application.OrgConfig{AiEnabled: false, WhatsAppEnabled: true}}, crm, stubCatalog{}, &stubCalendar{})
+	if err := p.Process(context.Background(), job); err != nil || !jobs.completed || crm.sentText != "Hola!" {
+		t.Fatalf("expected send when AiEnabled=false and WhatsAppEnabled=true: err=%v completed=%v sent=%q", err, jobs.completed, crm.sentText)
 	}
 
 	// Rate limit exceeded -> PauseForHandoff + fallback + Complete

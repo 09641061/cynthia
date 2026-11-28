@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"context"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"go-service/internal/assistant"
@@ -17,11 +18,11 @@ import (
 )
 
 func newRouter(db *postgres.Client, redisClient *sharedredis.Client, iamCfg iam.ModuleConfig, waCfg crm.WhatsAppConfig) (*gin.Engine, error) {
-	router, _, err := buildApp(db, redisClient, iamCfg, waCfg, assistant.Config{})
+	router, _, _, err := buildApp(db, redisClient, iamCfg, waCfg, assistant.Config{})
 	return router, err
 }
 
-func newApp(db *postgres.Client, redisClient *sharedredis.Client, cfg config.Config) (*gin.Engine, func(context.Context), error) {
+func newApp(db *postgres.Client, redisClient *sharedredis.Client, cfg config.Config) (*gin.Engine, func(context.Context), func(context.Context), error) {
 	iamCfg := iam.ModuleConfig{
 		ResendAPIKey: cfg.ResendAPIKey,
 		ResendFrom:   cfg.ResendFrom,
@@ -43,14 +44,21 @@ func newApp(db *postgres.Client, redisClient *sharedredis.Client, cfg config.Con
 		DeepSeekModel:   cfg.DeepSeekModel,
 		Workers:         cfg.AssistantWorkers,
 	}
-	return buildApp(db, redisClient, iamCfg, waCfg, assistantCfg)
+	router, crmGateway, startWorker, err := buildApp(db, redisClient, iamCfg, waCfg, assistantCfg)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	startInactivity := func(ctx context.Context) {
+		crmGateway.StartInactivityCloser(ctx, cfg.CRMConversationIdleTimeout, time.Minute)
+	}
+	return router, startInactivity, startWorker, nil
 }
 
-func buildApp(db *postgres.Client, redisClient *sharedredis.Client, iamCfg iam.ModuleConfig, waCfg crm.WhatsAppConfig, assistantCfg assistant.Config) (*gin.Engine, func(context.Context), error) {
+func buildApp(db *postgres.Client, redisClient *sharedredis.Client, iamCfg iam.ModuleConfig, waCfg crm.WhatsAppConfig, assistantCfg assistant.Config) (*gin.Engine, *crm.AssistantCRMGateway, func(context.Context), error) {
 	router := gin.Default()
 	iamModule, err := iam.NewModule(db, redisClient, router, iamCfg)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	authMW := iamModule.AuthMiddleware()
 
@@ -94,7 +102,7 @@ func buildApp(db *postgres.Client, redisClient *sharedredis.Client, iamCfg iam.M
 	)
 
 	router.StaticFile("/openapi.yaml", "api/openapi.yaml")
-	return router, assistantMod.StartWorker, nil
+	return router, crmGateway, assistantMod.StartWorker, nil
 }
 
 func skipWhatsAppWebhook(handlers ...gin.HandlerFunc) gin.HandlerFunc {
