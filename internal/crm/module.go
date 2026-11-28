@@ -1,6 +1,9 @@
 package crm
 
 import (
+	"context"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"go-service/internal/crm/application"
 	"go-service/internal/crm/infrastructure/persistence/postgres"
@@ -39,4 +42,12 @@ func NewModule(
 		messages:      messages,
 		hasDB:         db != nil,
 	}
+}
+
+// StartInactivityCloser periodically closes idle open conversations until ctx is cancelled.
+func (g *AssistantCRMGateway) StartInactivityCloser(ctx context.Context, idleTimeout, sweepInterval time.Duration) {
+	if g == nil || !g.hasDB {
+		return
+	}
+	application.NewInactivityCloser(g.store, g.broker, idleTimeout, sweepInterval).Start(ctx)
 }
